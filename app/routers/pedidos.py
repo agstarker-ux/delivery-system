@@ -1,0 +1,169 @@
+"""
+Rotas HTTP para pedidos: criar, listar, aceitar, atualizar status.
+"""
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth import exigir_tipo, obter_usuario_atual
+from app.database import get_db
+from app.geofence import validar_dentro_da_area_piloto
+from app.models import Pedido, Cliente, Motoboy, Usuario, Endereco, StatusPedido, StatusMotoboy
+from app.schemas import PedidoCreate, PedidoResponse, PedidoStatusUpdate
+from app.websocket_manager import gerenciador
+
+router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
+
+
+@router.post("/", response_model=PedidoResponse, status_code=201)
+async def criar_pedido(
+    dados: PedidoCreate,
+    db: AsyncSession = Depends(get_db),
+    usuario: Usuario = Depends(exigir_tipo("cliente")),
+):
+    resultado = await db.execute(select(Cliente).where(Cliente.usuario_id == usuario.id))
+    cliente = resultado.scalar_one_or_none()
+    if cliente is None:
+        raise HTTPException(status_code=404, detail="Perfil de cliente não encontrado")
+
+    # Valida que o endereço de entrega existe E pertence a este cliente
+    # (sem isso, um cliente poderia usar endereco_id de outra pessoa)
+    resultado = await db.execute(
+        select(Endereco).where(Endereco.id == dados.endereco_id, Endereco.cliente_id == cliente.id)
+    )
+    endereco = resultado.scalar_one_or_none()
+    if endereco is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Endereço não encontrado ou não pertence a este cliente",
+        )
+
+    # Valida que a origem (estabelecimento) está dentro da área piloto de cobertura.
+    # O endereço de entrega já foi validado no momento do cadastro (rota /enderecos/),
+    # mas a origem é informada a cada pedido, então precisa ser checada aqui.
+    validar_dentro_da_area_piloto(
+        dados.origem_latitude, dados.origem_longitude, contexto="estabelecimento de origem"
+    )
+
+    pedido = Pedido(
+        cliente_id=cliente.id,
+        endereco_id=dados.endereco_id,
+        origem_nome=dados.origem_nome,
+        origem_latitude=dados.origem_latitude,
+        origem_longitude=dados.origem_longitude,
+        itens_descricao=dados.itens_descricao,
+        valor_total=dados.valor_total,
+        taxa_entrega=dados.taxa_entrega,
+        observacoes=dados.observacoes,
+        status=StatusPedido.PENDENTE,
+    )
+    db.add(pedido)
+    await db.commit()
+    await db.refresh(pedido)
+
+    # Avisa os admins em tempo real que um novo pedido chegou
+    await gerenciador.notificar_admins("novo_pedido", {"pedido_id": pedido.id, "cliente_id": cliente.id})
+
+    return pedido
+
+
+@router.get("/", response_model=list[PedidoResponse])
+async def listar_pedidos(
+    db: AsyncSession = Depends(get_db),
+    _admin: Usuario = Depends(exigir_tipo("admin")),
+):
+    resultado = await db.execute(select(Pedido).order_by(Pedido.criado_em.desc()))
+    return resultado.scalars().all()
+
+
+@router.get("/pendentes", response_model=list[PedidoResponse])
+async def listar_pedidos_pendentes(
+    db: AsyncSession = Depends(get_db),
+    _motoboy: Usuario = Depends(exigir_tipo("motoboy", "admin")),
+):
+    """Motoboys disponíveis veem aqui os pedidos aguardando aceite."""
+    resultado = await db.execute(
+        select(Pedido).where(Pedido.status == StatusPedido.PENDENTE).order_by(Pedido.criado_em.asc())
+    )
+    return resultado.scalars().all()
+
+
+@router.post("/{pedido_id}/aceitar", response_model=PedidoResponse)
+async def aceitar_pedido(
+    pedido_id: str,
+    db: AsyncSession = Depends(get_db),
+    usuario: Usuario = Depends(exigir_tipo("motoboy")),
+):
+    resultado = await db.execute(select(Motoboy).where(Motoboy.usuario_id == usuario.id))
+    motoboy = resultado.scalar_one_or_none()
+    if motoboy is None:
+        raise HTTPException(status_code=404, detail="Perfil de motoboy não encontrado")
+
+    resultado = await db.execute(select(Pedido).where(Pedido.id == pedido_id))
+    pedido = resultado.scalar_one_or_none()
+    if pedido is None:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    if pedido.status != StatusPedido.PENDENTE:
+        raise HTTPException(status_code=409, detail="Pedido já foi aceito ou não está mais disponível")
+
+    pedido.motoboy_id = motoboy.id
+    pedido.status = StatusPedido.ACEITO
+    pedido.aceito_em = datetime.utcnow()
+    motoboy.status = StatusMotoboy.EM_ENTREGA
+
+    await db.commit()
+    await db.refresh(pedido)
+
+    # Habilita o roteamento de GPS deste motoboy para este pedido específico
+    gerenciador.vincular_pedido_a_motoboy(pedido_id, motoboy.id)
+    await gerenciador.notificar_admins(
+        "pedido_aceito", {"pedido_id": pedido.id, "motoboy_id": motoboy.id}
+    )
+
+    return pedido
+
+
+@router.patch("/{pedido_id}/status", response_model=PedidoResponse)
+async def atualizar_status_pedido(
+    pedido_id: str,
+    dados: PedidoStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    usuario: Usuario = Depends(exigir_tipo("motoboy", "admin")),
+):
+    resultado = await db.execute(select(Pedido).where(Pedido.id == pedido_id))
+    pedido = resultado.scalar_one_or_none()
+    if pedido is None:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+
+    pedido.status = dados.status
+    if dados.status == StatusPedido.ENTREGUE:
+        pedido.entregue_em = datetime.utcnow()
+        # Libera o motoboy e desvincula o roteamento de GPS deste pedido
+        resultado_mb = await db.execute(select(Motoboy).where(Motoboy.id == pedido.motoboy_id))
+        motoboy = resultado_mb.scalar_one_or_none()
+        if motoboy:
+            motoboy.status = StatusMotoboy.DISPONIVEL
+        gerenciador.desvincular_pedido(pedido_id)
+
+    await db.commit()
+    await db.refresh(pedido)
+
+    await gerenciador.notificar_admins(
+        "pedido_status_alterado", {"pedido_id": pedido.id, "status": pedido.status.value}
+    )
+    return pedido
+
+
+@router.get("/{pedido_id}", response_model=PedidoResponse)
+async def obter_pedido(
+    pedido_id: str,
+    db: AsyncSession = Depends(get_db),
+    _usuario: Usuario = Depends(obter_usuario_atual),
+):
+    resultado = await db.execute(select(Pedido).where(Pedido.id == pedido_id))
+    pedido = resultado.scalar_one_or_none()
+    if pedido is None:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    return pedido

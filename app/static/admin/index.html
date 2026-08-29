@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin — Sistema de Delivery Poranga</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #map { height: 100vh; width: 100vw; }
+    #login-box {
+      position: absolute; top: 10px; left: 10px; z-index: 1000;
+      background: white; padding: 10px; border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    }
+    #login-box input { display: block; margin-bottom: 6px; width: 200px; }
+    #status { position: absolute; bottom: 10px; left: 10px; z-index: 1000;
+      background: white; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div id="login-box">
+    <input id="email" placeholder="email admin" value="admin@poranga.com">
+    <input id="senha" type="password" placeholder="senha">
+    <button onclick="conectar()">Conectar</button>
+  </div>
+  <div id="status">Desconectado</div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
