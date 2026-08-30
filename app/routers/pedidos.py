@@ -154,10 +154,22 @@ async def atualizar_status_pedido(
 async def obter_pedido(
     pedido_id: str,
     db: AsyncSession = Depends(get_db),
-    _usuario: Usuario = Depends(obter_usuario_atual),
+    usuario: Usuario = Depends(obter_usuario_atual),
 ):
     resultado = await db.execute(select(Pedido).where(Pedido.id == pedido_id))
     pedido = resultado.scalar_one_or_none()
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
+
+    if usuario.tipo == "cliente":
+        resultado_cli = await db.execute(select(Cliente).where(Cliente.usuario_id == usuario.id))
+        cliente = resultado_cli.scalar_one_or_none()
+        if cliente is None or pedido.cliente_id != cliente.id:
+            raise HTTPException(status_code=403, detail="Este pedido não pertence a você")
+    elif usuario.tipo == "motoboy":
+        resultado_mb = await db.execute(select(Motoboy).where(Motoboy.usuario_id == usuario.id))
+        motoboy = resultado_mb.scalar_one_or_none()
+        if motoboy is None or pedido.motoboy_id != motoboy.id:
+            raise HTTPException(status_code=403, detail="Este pedido não pertence a você")
+
     return pedido
