@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delivery Poranga — Itacoatiara/AM</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --laranja: #FF6B35;
+  --vermelho: #C1121F;
+  --creme: #FFF8F0;
+  --escuro: #2B2B2B;
+  --verde: #4CAF50;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--creme);
+  color: var(--escuro);
+  min-height: 100vh;
+}
+
+.hero {
+  position: relative;
+  padding: 60px 20px 80px;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, #FFEDE0 0%, var(--creme) 100%);
+}
+
+.pin {
+  position: absolute;
+  opacity: 0.08;
+  font-size: 280px;
+  top: -60px;
+  right: -40px;
+  transform: rotate(15deg);
+  pointer-events: none;
+  user-select: none;
+}
+
+.eyebrow {
+  display: inline-block;
+  background: var(--laranja);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--vermelho);
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.subtitulo {
+  font-size: 18px;
+  color: #555;
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.cards {
+  max-width: 720px;
+  margin: -40px auto 0;
+  padding: 0 20px 60px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 560px) {
+  .cards { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 32px 24px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  text-decoration: none;
+  color: var(--escuro);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--laranja);
+  outline-offset: 3px;
+}
+
+.card-icone {
+  font-size: 48px;
+}
+
+.card h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.card p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.card-cliente { border-top: 4px solid var(--laranja); }
+.card-motoboy { border-top: 4px solid var(--vermelho); }
+
+.rodape {
+  text-align: center;
+  padding: 24px 20px 40px;
+  font-size: 13px;
+  color: #999;
+}
+
+.rodape strong {
+  color: var(--verde);
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="pin">📍</div>
+  <span class="eyebrow">Bairro Poranga · Itacoatiara/AM</span>
+  <h1>Delivery Poranga</h1>
+  <p class="subtitulo">Peça no seu bairro e acompanhe o motoboy chegando até você, em tempo real.</p>
+</div>
+
+<div class="cards">
+  <a href="/cliente/" class="card card-cliente">
+    <div class="card-icone">🛒</div>
+    <h2>Sou cliente</h2>
+    <p>Fazer um pedido e acompanhar a entrega no mapa</p>
+  </a>
+
+  <a href="/motoboy/" class="card card-motoboy">
+    <div class="card-icone">🛵</div>
+    <h2>Sou motoboy</h2>
+    <p>Ver pedidos disponíveis e aceitar entregas</p>
+  </a>
+</div>
+
+<div class="rodape">
+  <strong>●</strong> Sistema piloto ativo — bairro Poranga, Itacoatiara/AM
+</div>
+
+</body>
+</html>
