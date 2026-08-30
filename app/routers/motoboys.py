@@ -1,7 +1,3 @@
-"""
-Rotas HTTP para motoboys: status, listagem, localização atual.
-O GPS em si (fluxo contínuo) é via WebSocket — ver websocket_gps.py.
-"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +16,6 @@ async def listar_motoboys(
     db: AsyncSession = Depends(get_db),
     _admin: Usuario = Depends(exigir_tipo("admin")),
 ):
-    """Lista todos os motoboys com sua posição/status atual — usado pelo painel admin."""
     resultado = await db.execute(select(Motoboy))
     return resultado.scalars().all()
 
@@ -43,7 +38,6 @@ async def atualizar_status(
     db: AsyncSession = Depends(get_db),
     usuario: Usuario = Depends(exigir_tipo("motoboy")),
 ):
-    """Motoboy alterna entre disponível/offline manualmente no app."""
     resultado = await db.execute(select(Motoboy).where(Motoboy.usuario_id == usuario.id))
     motoboy = resultado.scalar_one_or_none()
     if motoboy is None:

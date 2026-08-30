@@ -1,12 +1,5 @@
-"""
-Rotas WebSocket para GPS em tempo real.
-
-Endpoints:
-  ws://.../ws/motoboy/{motoboy_id}?token=...   -> motoboy envia posição
-  ws://.../ws/admin?token=...                   -> admin recebe tudo
-  ws://.../ws/cliente/{pedido_id}?token=...     -> cliente recebe do seu pedido
-"""
 import logging
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
@@ -15,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import decodificar_token
 from app.database import AsyncSessionLocal
-from app.models import Motoboy, Usuario, PosicaoGPS
+from app.models import Motoboy, Usuario, PosicaoGPS, Pedido
 from app.schemas import PosicaoGPSInput
 from app.websocket_manager import gerenciador
 
@@ -24,7 +17,6 @@ router = APIRouter(tags=["WebSocket GPS"])
 
 
 async def _autenticar_websocket(token: str) -> dict | None:
-    """Valida o JWT recebido via query param. WebSocket não usa headers Authorization padrão."""
     try:
         return decodificar_token(token)
     except Exception:
@@ -33,18 +25,11 @@ async def _autenticar_websocket(token: str) -> dict | None:
 
 @router.websocket("/ws/motoboy/{motoboy_id}")
 async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = Query(...)):
-    """
-    O app do motoboy conecta aqui e envia, periodicamente (ex: a cada 3-5s),
-    um JSON no formato de PosicaoGPSInput:
-        {"latitude": -3.2997, "longitude": -60.6206, "velocidade": 32.5, "pedido_id": "uuid-ou-null"}
-    """
     payload = await _autenticar_websocket(token)
     if payload is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token inválido")
         return
 
-    # Confirma que o motoboy_id da URL pertence de fato ao usuário do token
-    # (exceto se for admin, que pode monitorar/testar qualquer motoboy).
     async with AsyncSessionLocal() as db:
         resultado = await db.execute(select(Motoboy).where(Motoboy.id == motoboy_id))
         motoboy = resultado.scalar_one_or_none()
@@ -60,19 +45,36 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
 
     await gerenciador.conectar_motoboy(motoboy_id, websocket)
 
-    try:
+    ultimo_envio = 0.0
+    intervalo_minimo_segundos = 1.0
 
+    try:
         while True:
             dados_brutos = await websocket.receive_json()
+
+            agora_monotonico = time.monotonic()
+            if agora_monotonico - ultimo_envio < intervalo_minimo_segundos:
+                await websocket.send_json({"erro": "Envio muito frequente, aguarde"})
+                continue
+            ultimo_envio = agora_monotonico
             try:
                 posicao = PosicaoGPSInput(**dados_brutos)
             except Exception as e:
                 await websocket.send_json({"erro": f"Payload inválido: {e}"})
                 continue
 
+            if posicao.pedido_id:
+                async with AsyncSessionLocal() as db_check:
+                    resultado_pedido = await db_check.execute(
+                        select(Pedido).where(Pedido.id == posicao.pedido_id)
+                    )
+                    pedido_verificado = resultado_pedido.scalar_one_or_none()
+                    if pedido_verificado is None or pedido_verificado.motoboy_id != motoboy_id:
+                        await websocket.send_json({"erro": "pedido_id não pertence a este motoboy"})
+                        continue
+
             agora = datetime.utcnow()
 
-            # Atualiza a posição "atual" do motoboy (leitura rápida) e grava histórico
             async with AsyncSessionLocal() as db:
                 resultado = await db.execute(select(Motoboy).where(Motoboy.id == motoboy_id))
                 motoboy = resultado.scalar_one_or_none()
@@ -92,7 +94,6 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
                     ))
                     await db.commit()
 
-            # Repassa em tempo real para admins e cliente do pedido
             await gerenciador.broadcast_posicao(
                 motoboy_id=motoboy_id,
                 latitude=posicao.latitude,
@@ -101,14 +102,12 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
                 pedido_id=posicao.pedido_id,
             )
 
-            # Confirmação leve para o motoboy (opcional, ajuda a debugar no app)
             await websocket.send_json({"status": "ok", "recebido_em": agora.isoformat()})
 
     except WebSocketDisconnect:
         logger.info(f"Motoboy {motoboy_id} desconectou")
     finally:
         gerenciador.desconectar_motoboy(motoboy_id)
-        # Marca offline no banco
         async with AsyncSessionLocal() as db:
             resultado = await db.execute(select(Motoboy).where(Motoboy.id == motoboy_id))
             motoboy = resultado.scalar_one_or_none()
@@ -121,7 +120,6 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
 
 @router.websocket("/ws/admin")
 async def websocket_admin(websocket: WebSocket, token: str = Query(...)):
-    """Painel admin conecta aqui e recebe a posição de TODOS os motoboys em tempo real."""
     payload = await _autenticar_websocket(token)
     if payload is None or payload.get("tipo") != "admin":
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Acesso restrito a administradores")
@@ -130,8 +128,6 @@ async def websocket_admin(websocket: WebSocket, token: str = Query(...)):
     await gerenciador.conectar_admin(websocket)
     try:
         while True:
-            # Mantém a conexão viva; admin normalmente só recebe, não envia.
-            # Se o cliente mandar algo (ex: ping), apenas ignoramos/logamos.
             await websocket.receive_text()
     except WebSocketDisconnect:
         logger.info("Admin desconectou do painel ao vivo")
@@ -141,13 +137,11 @@ async def websocket_admin(websocket: WebSocket, token: str = Query(...)):
 
 @router.websocket("/ws/cliente/{pedido_id}")
 async def websocket_cliente(websocket: WebSocket, pedido_id: str, token: str = Query(...)):
-    """Cliente conecta aqui para acompanhar, ao vivo, o motoboy do SEU pedido específico."""
     payload = await _autenticar_websocket(token)
     if payload is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token inválido")
         return
 
-    # TODO produção: validar que pedido_id realmente pertence ao usuário do token
     await gerenciador.conectar_cliente(pedido_id, websocket)
     try:
         while True:

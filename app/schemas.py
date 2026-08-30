@@ -1,22 +1,14 @@
-"""
-Schemas Pydantic — validam dados de entrada e formatam dados de saída da API.
-Nunca expomos os modelos ORM diretamente: sempre passam por aqui.
-"""
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.models import StatusPedido, StatusMotoboy
 
 
-# ---------------------------------------------------------------------------
-# AUTENTICAÇÃO
-# ---------------------------------------------------------------------------
-
 class RegistroUsuario(BaseModel):
     nome: str = Field(min_length=2, max_length=120)
     telefone: str = Field(min_length=10, max_length=20)
     senha: str = Field(min_length=6, max_length=100)
-    tipo: str = Field(pattern="^(cliente|motoboy|admin)$")
+    tipo: str = Field(pattern="^(cliente|motoboy)$")
 
 
 class LoginRequest(BaseModel):
@@ -31,10 +23,6 @@ class TokenResponse(BaseModel):
     tipo: str
     nome: str
 
-
-# ---------------------------------------------------------------------------
-# ENDEREÇO
-# ---------------------------------------------------------------------------
 
 class EnderecoCreate(BaseModel):
     apelido: str = "Casa"
@@ -54,10 +42,6 @@ class EnderecoResponse(EnderecoCreate):
     id: str
 
 
-# ---------------------------------------------------------------------------
-# MOTOBOY
-# ---------------------------------------------------------------------------
-
 class MotoboyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -71,12 +55,7 @@ class AtualizacaoStatusMotoboy(BaseModel):
     status: StatusMotoboy
 
 
-# ---------------------------------------------------------------------------
-# GPS (WebSocket)
-# ---------------------------------------------------------------------------
-
 class PosicaoGPSInput(BaseModel):
-    """Payload enviado pelo motoboy via WebSocket a cada atualização de posição."""
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     velocidade: float | None = None
@@ -85,7 +64,6 @@ class PosicaoGPSInput(BaseModel):
 
 
 class PosicaoGPSBroadcast(BaseModel):
-    """Payload que o servidor envia ao admin/cliente conectados via WebSocket."""
     motoboy_id: str
     latitude: float
     longitude: float
@@ -93,10 +71,6 @@ class PosicaoGPSBroadcast(BaseModel):
     pedido_id: str | None = None
     timestamp: str
 
-
-# ---------------------------------------------------------------------------
-# PEDIDO
-# ---------------------------------------------------------------------------
 
 class PedidoCreate(BaseModel):
     endereco_id: str

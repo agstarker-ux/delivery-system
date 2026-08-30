@@ -1,7 +1,19 @@
-const CENTRO_PORANGA = [-3.115, -58.435];
+const CENTRO_PORANGA = [-3.110897, -58.458911];
 const RAIO_KM = 3;
 
 const map = L.map('map').setView(CENTRO_PORANGA, 14);
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+const recentralizarControl = L.control({ position: 'topright' });
+recentralizarControl.onAdd = function() {
+  const btn = L.DomUtil.create('button');
+  btn.innerHTML = '⌖ Centralizar';
+  btn.style.cssText = 'background:white;padding:6px 10px;border-radius:4px;border:2px solid rgba(0,0,0,0.2);cursor:pointer;font-size:13px;';
+  btn.onclick = () => map.setView(CENTRO_PORANGA, 14);
+  return btn;
+};
+recentralizarControl.addTo(map);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors',
@@ -21,7 +33,7 @@ function statusEl() {
 }
 
 async function conectar() {
-  const email = document.getElementById('email').value;
+  const telefone = document.getElementById('telefone').value;
   const senha = document.getElementById('senha').value;
 
   let resp;
@@ -29,7 +41,7 @@ async function conectar() {
     resp = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, senha })
+      body: JSON.stringify({ telefone, senha })
     });
   } catch (e) {
     statusEl().textContent = 'Erro de rede no login';

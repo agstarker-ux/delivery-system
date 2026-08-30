@@ -1,6 +1,3 @@
-"""
-Rotas HTTP para o cliente cadastrar e gerenciar seus endereços de entrega.
-"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +17,6 @@ async def cadastrar_endereco(
     db: AsyncSession = Depends(get_db),
     usuario: Usuario = Depends(exigir_tipo("cliente")),
 ):
-    """Cliente cadastra um endereço de entrega. Precisa estar dentro da área piloto."""
     validar_dentro_da_area_piloto(dados.latitude, dados.longitude, contexto="endereço de entrega")
 
     resultado = await db.execute(select(Cliente).where(Cliente.usuario_id == usuario.id))
@@ -40,7 +36,6 @@ async def listar_meus_enderecos(
     db: AsyncSession = Depends(get_db),
     usuario: Usuario = Depends(exigir_tipo("cliente")),
 ):
-    """Lista todos os endereços cadastrados pelo cliente autenticado."""
     resultado = await db.execute(select(Cliente).where(Cliente.usuario_id == usuario.id))
     cliente = resultado.scalar_one_or_none()
     if cliente is None:
@@ -56,7 +51,6 @@ async def remover_endereco(
     db: AsyncSession = Depends(get_db),
     usuario: Usuario = Depends(exigir_tipo("cliente")),
 ):
-    """Remove um endereço — só o dono pode remover."""
     resultado = await db.execute(select(Cliente).where(Cliente.usuario_id == usuario.id))
     cliente = resultado.scalar_one_or_none()
     if cliente is None:

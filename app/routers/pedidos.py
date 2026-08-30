@@ -1,6 +1,3 @@
-"""
-Rotas HTTP para pedidos: criar, listar, aceitar, atualizar status.
-"""
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -28,8 +25,6 @@ async def criar_pedido(
     if cliente is None:
         raise HTTPException(status_code=404, detail="Perfil de cliente não encontrado")
 
-    # Valida que o endereço de entrega existe E pertence a este cliente
-    # (sem isso, um cliente poderia usar endereco_id de outra pessoa)
     resultado = await db.execute(
         select(Endereco).where(Endereco.id == dados.endereco_id, Endereco.cliente_id == cliente.id)
     )
@@ -40,9 +35,6 @@ async def criar_pedido(
             detail="Endereço não encontrado ou não pertence a este cliente",
         )
 
-    # Valida que a origem (estabelecimento) está dentro da área piloto de cobertura.
-    # O endereço de entrega já foi validado no momento do cadastro (rota /enderecos/),
-    # mas a origem é informada a cada pedido, então precisa ser checada aqui.
     validar_dentro_da_area_piloto(
         dados.origem_latitude, dados.origem_longitude, contexto="estabelecimento de origem"
     )
@@ -63,7 +55,6 @@ async def criar_pedido(
     await db.commit()
     await db.refresh(pedido)
 
-    # Avisa os admins em tempo real que um novo pedido chegou
     await gerenciador.notificar_admins("novo_pedido", {"pedido_id": pedido.id, "cliente_id": cliente.id})
 
     return pedido
@@ -83,7 +74,6 @@ async def listar_pedidos_pendentes(
     db: AsyncSession = Depends(get_db),
     _motoboy: Usuario = Depends(exigir_tipo("motoboy", "admin")),
 ):
-    """Motoboys disponíveis veem aqui os pedidos aguardando aceite."""
     resultado = await db.execute(
         select(Pedido).where(Pedido.status == StatusPedido.PENDENTE).order_by(Pedido.criado_em.asc())
     )
@@ -116,7 +106,6 @@ async def aceitar_pedido(
     await db.commit()
     await db.refresh(pedido)
 
-    # Habilita o roteamento de GPS deste motoboy para este pedido específico
     gerenciador.vincular_pedido_a_motoboy(pedido_id, motoboy.id)
     await gerenciador.notificar_admins(
         "pedido_aceito", {"pedido_id": pedido.id, "motoboy_id": motoboy.id}
@@ -137,10 +126,15 @@ async def atualizar_status_pedido(
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
+    if usuario.tipo == "motoboy":
+        resultado_mb = await db.execute(select(Motoboy).where(Motoboy.usuario_id == usuario.id))
+        motoboy = resultado_mb.scalar_one_or_none()
+        if motoboy is None or pedido.motoboy_id != motoboy.id:
+            raise HTTPException(status_code=403, detail="Este pedido não pertence a você")
+
     pedido.status = dados.status
     if dados.status == StatusPedido.ENTREGUE:
         pedido.entregue_em = datetime.utcnow()
-        # Libera o motoboy e desvincula o roteamento de GPS deste pedido
         resultado_mb = await db.execute(select(Motoboy).where(Motoboy.id == pedido.motoboy_id))
         motoboy = resultado_mb.scalar_one_or_none()
         if motoboy:

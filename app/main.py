@@ -1,7 +1,3 @@
-"""
-Ponto de entrada da aplicação.
-Rodar com: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-"""
 import logging
 from contextlib import asynccontextmanager
 
@@ -18,7 +14,6 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: cria as tabelas se não existirem (dev). Em produção use Alembic.
     await init_db()
     logging.info("Banco de dados inicializado.")
     yield
@@ -38,17 +33,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Rotas HTTP
 app.include_router(auth_routes.router)
 app.include_router(pedidos.router)
 app.include_router(motoboys.router)
 app.include_router(enderecos.router)
 
-# Rotas WebSocket (GPS em tempo real)
 app.include_router(websocket_gps.router)
 
-# Painel Admin (frontend estático com mapa Leaflet)
 app.mount("/admin", StaticFiles(directory="app/static/admin", html=True), name="admin")
+app.mount("/cliente", StaticFiles(directory="app/static/cliente", html=True), name="cliente")
+app.mount("/motoboy", StaticFiles(directory="app/static/motoboy", html=True), name="motoboy")
 
 
 @app.get("/", tags=["Status"])

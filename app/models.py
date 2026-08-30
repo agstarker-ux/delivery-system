@@ -1,6 +1,3 @@
-"""
-Modelos ORM (SQLAlchemy 2.0) — representam as tabelas do banco.
-"""
 import enum
 import uuid
 from datetime import datetime
@@ -16,16 +13,12 @@ def gen_uuid() -> str:
     return str(uuid.uuid4())
 
 
-# ---------------------------------------------------------------------------
-# ENUMS
-# ---------------------------------------------------------------------------
-
 class StatusPedido(str, enum.Enum):
-    PENDENTE = "pendente"           # cliente fez o pedido, aguardando aceite
-    ACEITO = "aceito"               # motoboy aceitou
-    A_CAMINHO_COLETA = "a_caminho_coleta"   # motoboy indo buscar
-    COLETADO = "coletado"           # motoboy pegou o pedido no estabelecimento
-    A_CAMINHO_ENTREGA = "a_caminho_entrega"  # motoboy indo entregar
+    PENDENTE = "pendente"
+    ACEITO = "aceito"
+    A_CAMINHO_COLETA = "a_caminho_coleta"
+    COLETADO = "coletado"
+    A_CAMINHO_ENTREGA = "a_caminho_entrega"
     ENTREGUE = "entregue"
     CANCELADO = "cancelado"
 
@@ -36,32 +29,20 @@ class StatusMotoboy(str, enum.Enum):
     EM_ENTREGA = "em_entrega"
 
 
-# ---------------------------------------------------------------------------
-# USUÁRIOS BASE (autenticação compartilhada)
-# ---------------------------------------------------------------------------
-
 class Usuario(Base):
-    """
-    Tabela base de autenticação. Cliente, Motoboy e Admin
-    têm um registro aqui + uma tabela de perfil específica.
-    """
     __tablename__ = "usuarios"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     nome: Mapped[str] = mapped_column(String(120), nullable=False)
     telefone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    tipo: Mapped[str] = mapped_column(String(20), nullable=False)  # "cliente" | "motoboy" | "admin"
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     cliente_perfil: Mapped["Cliente"] = relationship(back_populates="usuario", uselist=False, cascade="all, delete-orphan")
     motoboy_perfil: Mapped["Motoboy"] = relationship(back_populates="usuario", uselist=False, cascade="all, delete-orphan")
 
-
-# ---------------------------------------------------------------------------
-# CLIENTE
-# ---------------------------------------------------------------------------
 
 class Cliente(Base):
     __tablename__ = "clientes"
@@ -80,7 +61,7 @@ class Endereco(Base):
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     cliente_id: Mapped[str] = mapped_column(ForeignKey("clientes.id", ondelete="CASCADE"))
 
-    apelido: Mapped[str] = mapped_column(String(50), default="Casa")  # "Casa", "Trabalho"...
+    apelido: Mapped[str] = mapped_column(String(50), default="Casa")
     logradouro: Mapped[str] = mapped_column(String(200), nullable=False)
     numero: Mapped[str] = mapped_column(String(20), nullable=False)
     bairro: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -89,16 +70,11 @@ class Endereco(Base):
     cidade: Mapped[str] = mapped_column(String(100), default="Manacapuru")
     estado: Mapped[str] = mapped_column(String(2), default="AM")
 
-    # Coordenadas — essenciais para o mapa e cálculo de rota/distância
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
 
     cliente: Mapped["Cliente"] = relationship(back_populates="enderecos")
 
-
-# ---------------------------------------------------------------------------
-# MOTOBOY
-# ---------------------------------------------------------------------------
 
 class Motoboy(Base):
     __tablename__ = "motoboys"
@@ -110,7 +86,6 @@ class Motoboy(Base):
     cnh: Mapped[str] = mapped_column(String(20), nullable=True)
     status: Mapped[StatusMotoboy] = mapped_column(Enum(StatusMotoboy), default=StatusMotoboy.OFFLINE)
 
-    # Última posição conhecida (atualizada via WebSocket em tempo real)
     latitude_atual: Mapped[float] = mapped_column(Float, nullable=True)
     longitude_atual: Mapped[float] = mapped_column(Float, nullable=True)
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=True)
@@ -121,11 +96,6 @@ class Motoboy(Base):
 
 
 class PosicaoGPS(Base):
-    """
-    Histórico de posições do motoboy — útil para auditoria, cálculo de rota
-    percorrida, e replay de entregas. A posição "atual" fica em Motoboy
-    para leitura rápida; aqui fica o histórico completo.
-    """
     __tablename__ = "posicoes_gps"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -134,16 +104,12 @@ class PosicaoGPS(Base):
 
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
-    velocidade: Mapped[float] = mapped_column(Float, nullable=True)  # km/h, se disponível
-    precisao: Mapped[float] = mapped_column(Float, nullable=True)    # metros (accuracy do GPS)
+    velocidade: Mapped[float] = mapped_column(Float, nullable=True)
+    precisao: Mapped[float] = mapped_column(Float, nullable=True)
     registrado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     motoboy: Mapped["Motoboy"] = relationship(back_populates="historico_posicoes")
 
-
-# ---------------------------------------------------------------------------
-# PEDIDO
-# ---------------------------------------------------------------------------
 
 class Pedido(Base):
     __tablename__ = "pedidos"
@@ -155,12 +121,11 @@ class Pedido(Base):
 
     status: Mapped[StatusPedido] = mapped_column(Enum(StatusPedido), default=StatusPedido.PENDENTE, index=True)
 
-    # Origem (estabelecimento) — coordenadas para o motoboy ir buscar
     origem_nome: Mapped[str] = mapped_column(String(150), nullable=False)
     origem_latitude: Mapped[float] = mapped_column(Float, nullable=False)
     origem_longitude: Mapped[float] = mapped_column(Float, nullable=False)
 
-    itens_descricao: Mapped[str] = mapped_column(Text, nullable=False)  # texto livre ou JSON serializado
+    itens_descricao: Mapped[str] = mapped_column(Text, nullable=False)
     valor_total: Mapped[float] = mapped_column(Float, nullable=False)
     taxa_entrega: Mapped[float] = mapped_column(Float, default=0.0)
     observacoes: Mapped[str] = mapped_column(Text, nullable=True)

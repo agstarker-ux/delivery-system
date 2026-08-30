@@ -1,6 +1,3 @@
-"""
-Rotas de autenticação: registro de conta e login.
-"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +12,6 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 @router.post("/registrar", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def registrar(dados: RegistroUsuario, db: AsyncSession = Depends(get_db)):
-    """Cria uma nova conta (cliente, motoboy ou admin) e já retorna o token de acesso."""
     resultado = await db.execute(select(Usuario).where(Usuario.telefone == dados.telefone))
     if resultado.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="Telefone já cadastrado")
@@ -27,11 +23,11 @@ async def registrar(dados: RegistroUsuario, db: AsyncSession = Depends(get_db)):
         tipo=dados.tipo,
     )
     db.add(usuario)
-    await db.flush()  # garante que usuario.id já existe antes de criar o perfil
+    await db.flush()
 
     if dados.tipo == "cliente":
         db.add(Cliente(usuario_id=usuario.id))
-    elif dados.tipo == "motoboy":
+    else:
         db.add(Motoboy(usuario_id=usuario.id))
 
     await db.commit()
@@ -42,7 +38,6 @@ async def registrar(dados: RegistroUsuario, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(dados: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Autentica por telefone + senha e retorna um JWT."""
     resultado = await db.execute(select(Usuario).where(Usuario.telefone == dados.telefone))
     usuario = resultado.scalar_one_or_none()
 

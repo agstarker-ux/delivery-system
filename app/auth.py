@@ -1,6 +1,3 @@
-"""
-Autenticação: hash de senha (bcrypt) e tokens JWT.
-"""
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -16,9 +13,6 @@ from app.models import Usuario
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# bcrypt trunca em 72 bytes — validamos no schema (RegistroUsuario), mas
-# aqui usamos a lib bcrypt diretamente (mais estável que passlib+bcrypt5.x).
-
 
 def hash_senha(senha_pura: str) -> str:
     salt = bcrypt.gensalt()
@@ -30,7 +24,6 @@ def verificar_senha(senha_pura: str, senha_hash: str) -> bool:
 
 
 def criar_access_token(dados: dict) -> str:
-    """Gera um JWT contendo os dados fornecidos + expiração."""
     payload = dados.copy()
     expira_em = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload.update({"exp": expira_em})
@@ -38,10 +31,6 @@ def criar_access_token(dados: dict) -> str:
 
 
 def decodificar_token(token: str) -> dict:
-    """
-    Decodifica e valida um JWT. Lança HTTPException 401 se inválido/expirado.
-    Usado tanto nas rotas HTTP quanto na autenticação do WebSocket.
-    """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload
@@ -57,10 +46,6 @@ async def obter_usuario_atual(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> Usuario:
-    """
-    Dependency do FastAPI: extrai o usuário autenticado a partir do token JWT
-    enviado no header Authorization: Bearer <token>.
-    """
     payload = decodificar_token(token)
     usuario_id: str | None = payload.get("sub")
     if usuario_id is None:
@@ -75,10 +60,6 @@ async def obter_usuario_atual(
 
 
 def exigir_tipo(*tipos_permitidos: str):
-    """
-    Factory de dependency para restringir uma rota a certos tipos de usuário.
-    Uso: Depends(exigir_tipo("admin"))  ou  Depends(exigir_tipo("motoboy", "admin"))
-    """
     async def verificador(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
         if usuario.tipo not in tipos_permitidos:
             raise HTTPException(

@@ -1,10 +1,3 @@
-"""
-Validação de área de cobertura (geofence).
-
-Enquanto o sistema roda em modo piloto, restringe entregas ao raio
-configurado ao redor do bairro Poranga (Itacoatiara/AM). Isso evita
-pedidos ou endereços fora da área que o motoboy consegue atender.
-"""
 import math
 
 from fastapi import HTTPException, status
@@ -13,11 +6,6 @@ from app.config import settings
 
 
 def distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """
-    Distância em linha reta entre duas coordenadas, em km (fórmula de Haversine).
-    Não é a distância de rota real (isso o Leaflet + OSRM resolvem depois),
-    mas é suficiente para o geofence: "está dentro do raio ou não".
-    """
     raio_terra_km = 6371.0
 
     lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
@@ -36,9 +24,8 @@ def distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def esta_na_area_piloto(latitude: float, longitude: float) -> bool:
-    """Verifica se uma coordenada está dentro do raio de cobertura configurado."""
     if not settings.AREA_PILOTO_ATIVA:
-        return True  # geofence desligado — aceita qualquer coordenada
+        return True
 
     dist = distancia_km(
         latitude, longitude,
@@ -48,10 +35,6 @@ def esta_na_area_piloto(latitude: float, longitude: float) -> bool:
 
 
 def validar_dentro_da_area_piloto(latitude: float, longitude: float, contexto: str = "localização") -> None:
-    """
-    Levanta HTTPException 422 se a coordenada estiver fora da área piloto.
-    `contexto` aparece na mensagem de erro (ex: "endereço de entrega", "estabelecimento de origem").
-    """
     if not esta_na_area_piloto(latitude, longitude):
         dist = distancia_km(
             latitude, longitude,
