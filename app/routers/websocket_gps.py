@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import decodificar_token
 from app.database import AsyncSessionLocal
-from app.models import Motoboy, Usuario, PosicaoGPS, Pedido
+from app.geofence import esta_na_area_piloto
+from app.models import Motoboy, Usuario, PosicaoGPS, Pedido, Cliente
 from app.schemas import PosicaoGPSInput
 from app.websocket_manager import gerenciador
 
@@ -61,6 +62,10 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
                 posicao = PosicaoGPSInput(**dados_brutos)
             except Exception as e:
                 await websocket.send_json({"erro": f"Payload inválido: {e}"})
+                continue
+
+            if not esta_na_area_piloto(posicao.latitude, posicao.longitude):
+                await websocket.send_json({"erro": "Posição fora da área de cobertura do piloto"})
                 continue
 
             if posicao.pedido_id:
@@ -141,6 +146,25 @@ async def websocket_cliente(websocket: WebSocket, pedido_id: str, token: str = Q
     if payload is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token inválido")
         return
+
+    usuario_do_token = payload.get("sub")
+    tipo_do_token = payload.get("tipo")
+
+    async with AsyncSessionLocal() as db:
+        resultado_pedido = await db.execute(select(Pedido).where(Pedido.id == pedido_id))
+        pedido = resultado_pedido.scalar_one_or_none()
+        if pedido is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Pedido não encontrado")
+            return
+
+        if tipo_do_token != "admin":
+            resultado_cliente = await db.execute(
+                select(Cliente).where(Cliente.usuario_id == usuario_do_token)
+            )
+            cliente = resultado_cliente.scalar_one_or_none()
+            if cliente is None or pedido.cliente_id != cliente.id:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Este pedido não pertence a você")
+                return
 
     await gerenciador.conectar_cliente(pedido_id, websocket)
     try:
