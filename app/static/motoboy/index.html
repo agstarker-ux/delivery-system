@@ -1,75 +1,65 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Motoboy — Sistema de Delivery Poranga</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: sans-serif; background: #f5f5f5; }
-    .hidden { display: none !important; }
-    #app { max-width: 480px; margin: 0 auto; padding: 16px; }
-    h2 { margin-top: 0; }
-    input, textarea, select {
-      width: 100%; padding: 8px; margin-bottom: 8px;
-      border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-    }
-    button {
-      width: 100%; padding: 10px; background: #2563eb; color: white;
-      border: none; border-radius: 4px; font-size: 15px; cursor: pointer;
-      margin-bottom: 8px;
-    }
-    button.secundario { background: #6b7280; }
-    button.perigo { background: #dc2626; }
-    button.sucesso { background: #16a34a; }
-    #mapa { height: 260px; width: 100%; border-radius: 6px; margin-bottom: 8px; }
-    .card { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-    .status-badge {
-      display: inline-block; padding: 4px 10px; border-radius: 12px;
-      font-size: 12px; font-weight: bold; color: white;
-    }
-    #msg { color: #dc2626; font-size: 13px; margin-bottom: 8px; }
-    small { color: #666; }
-    .pedido-item { border: 1px solid #eee; padding: 8px; border-radius: 4px; margin-bottom: 6px; }
-    .pedido-item button { width: auto; padding: 4px 10px; font-size: 12px; margin-top: 4px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delivery Poranga — Motoboy</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="estilo.css" />
+<style>
+#mapa { height: 260px; width: 100%; }
+.pedido-item { border: 1.5px solid var(--cinza-borda); padding: 14px; border-radius: 12px; margin-bottom: 10px; transition: border-color 0.15s ease; }
+.pedido-item:hover { border-color: var(--laranja); }
+.pedido-item-nome { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+.pedido-item-itens { font-size: 13px; color: var(--cinza-texto); margin-bottom: 8px; }
+.pedido-item-valores { font-size: 13px; color: var(--escuro); margin-bottom: 10px; }
+</style>
 </head>
 <body>
-<div id="app">
-  <h2>🛵 Motoboy — Poranga</h2>
-  <div id="msg"></div>
 
-  <!-- LOGIN -->
-  <div id="auth-section" class="card">
+<div class="topo">
+  <svg class="topo-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="5" cy="18" r="3"></circle>
+    <circle cx="19" cy="18" r="3"></circle>
+    <path d="M8 18h6l3-8h3M5 18l3-9h4l2 4"></path>
+  </svg>
+  <h1>Motoboy — Poranga</h1>
+</div>
+
+<div id="app">
+  <div id="mensagem-flutuante"></div>
+
+  <div id="auth-section" class="cartao">
     <h3>Entrar</h3>
-    <input id="login-telefone" placeholder="Telefone (ex: 92999999999)">
-    <input id="login-senha" type="password" placeholder="Senha">
+    <label>Telefone</label>
+    <input id="login-telefone" placeholder="92999999999">
+    <label>Senha</label>
+    <input id="login-senha" type="password" placeholder="Sua senha">
     <button onclick="fazerLogin()">Entrar</button>
   </div>
 
-  <!-- LOGADO -->
   <div id="logado-section" class="hidden">
-    <div class="card">
-      <strong id="saudacao"></strong>
-      <p>Status: <span id="status-badge" class="status-badge">-</span></p>
+    <div class="cartao">
+      <div class="saudacao-caixa" style="margin-bottom: 14px;">
+        <span class="saudacao-nome" id="saudacao"></span>
+        <button class="secundario pequeno" onclick="sair()">Sair</button>
+      </div>
+      <p style="margin-bottom: 10px;">Status: <span id="status-badge" class="status-badge">-</span></p>
       <button id="btn-alternar-status" onclick="alternarStatus()">Ficar disponível</button>
-      <button class="secundario" onclick="sair()">Sair</button>
     </div>
 
-    <!-- LISTA DE PEDIDOS PENDENTES -->
-    <div id="pendentes-section" class="card hidden">
+    <div id="pendentes-section" class="cartao hidden">
       <h3>Pedidos pendentes</h3>
       <div id="lista-pendentes"></div>
     </div>
 
-    <!-- PEDIDO ATUAL -->
-    <div id="pedido-atual-section" class="card hidden">
+    <div id="pedido-atual-section" class="cartao hidden">
       <h3>Pedido em andamento</h3>
-      <p><strong id="pa-origem"></strong></p>
-      <p id="pa-itens"></p>
-      <p id="pa-valor"></p>
-      <p>Status: <span id="pa-status" class="status-badge">-</span></p>
-      <div id="mapa"></div>
+      <p class="pedido-item-nome" id="pa-origem"></p>
+      <p class="pedido-item-itens" id="pa-itens"></p>
+      <p class="pedido-item-valores" id="pa-valor"></p>
+      <p style="margin-bottom: 12px;">Status: <span id="pa-status" class="status-badge">-</span></p>
+      <div class="mapa-caixa"><div id="mapa"></div></div>
       <button id="btn-avancar" onclick="avancarStatus()">Avançar status</button>
       <button class="perigo" onclick="cancelarPedido()">Cancelar pedido</button>
     </div>

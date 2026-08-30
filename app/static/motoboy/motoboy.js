@@ -32,9 +32,13 @@ let mapa = null;
 let marcadorOrigemMapa = null;
 let marcadorMotoboyMapa = null;
 
-function mostrarMsg(texto) {
-  document.getElementById('msg').textContent = texto;
-  setTimeout(() => { document.getElementById('msg').textContent = ''; }, 5000);
+function mostrarMsg(texto, tipoErro) {
+  const el = document.getElementById('mensagem-flutuante');
+  el.textContent = texto;
+  el.classList.toggle('erro', tipoErro !== false);
+  el.classList.add('visivel');
+  clearTimeout(window.__timeoutMsg);
+  window.__timeoutMsg = setTimeout(() => { el.classList.remove('visivel'); }, 3500);
 }
 
 // --- AUTENTICAÇÃO ----------------------------------------------------------

@@ -12,14 +12,20 @@ let pedidoAtualId = null;
 let wsAcompanhar = null;
 let pollingInterval = null;
 
-function mostrarMsg(texto) {
-  document.getElementById('msg').textContent = texto;
-  setTimeout(() => { document.getElementById('msg').textContent = ''; }, 5000);
+function mostrarMsg(texto, tipoErro) {
+  const el = document.getElementById('mensagem-flutuante');
+  el.textContent = texto;
+  el.classList.toggle('erro', tipoErro !== false);
+  el.classList.add('visivel');
+  clearTimeout(window.__timeoutMsg);
+  window.__timeoutMsg = setTimeout(() => { el.classList.remove('visivel'); }, 3500);
 }
 
 function mostrarAba(aba) {
   document.getElementById('aba-login').classList.toggle('hidden', aba !== 'login');
   document.getElementById('aba-cadastro').classList.toggle('hidden', aba !== 'cadastro');
+  document.getElementById('btn-aba-login').classList.toggle('ativa', aba === 'login');
+  document.getElementById('btn-aba-cadastro').classList.toggle('ativa', aba === 'cadastro');
 }
 
 // --- AUTENTICAÇÃO ----------------------------------------------------------
@@ -226,8 +232,23 @@ async function criarPedido() {
 // --- ACOMPANHAMENTO ------------------------------------------------------------
 
 const CORES_STATUS = {
-  PENDENTE: '#f59e0b', ACEITO: '#3b82f6', EM_ROTA: '#3b82f6',
-  ENTREGUE: '#16a34a', CANCELADO: '#dc2626'
+  pendente: '#f59e0b',
+  aceito: '#3b82f6',
+  a_caminho_coleta: '#3b82f6',
+  coletado: '#3b82f6',
+  a_caminho_entrega: '#3b82f6',
+  entregue: '#16a34a',
+  cancelado: '#dc2626'
+};
+
+const LABELS_STATUS = {
+  pendente: 'Pendente',
+  aceito: 'Aceito',
+  a_caminho_coleta: 'A caminho da coleta',
+  coletado: 'Coletado',
+  a_caminho_entrega: 'A caminho da entrega',
+  entregue: 'Entregue',
+  cancelado: 'Cancelado'
 };
 
 function iniciarAcompanhamento(pedido) {
@@ -257,7 +278,7 @@ function iniciarAcompanhamento(pedido) {
 
 function atualizarStatusVisual(status) {
   const el = document.getElementById('pedido-status');
-  el.textContent = status;
+  el.textContent = LABELS_STATUS[status] || status;
   el.style.background = CORES_STATUS[status] || '#6b7280';
 }
 
@@ -266,7 +287,7 @@ async function verificarStatusPedido(pedidoId) {
     const resp = await apiFetch(`/pedidos/${pedidoId}`);
     const pedido = await resp.json();
     atualizarStatusVisual(pedido.status);
-    if (pedido.status === 'ENTREGUE' || pedido.status === 'CANCELADO') {
+    if (pedido.status === 'entregue' || pedido.status === 'cancelado') {
       clearInterval(pollingInterval);
       if (wsAcompanhar) wsAcompanhar.close();
     }
