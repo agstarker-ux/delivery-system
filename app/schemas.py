@@ -31,7 +31,7 @@ class EnderecoCreate(BaseModel):
     bairro: str
     complemento: str | None = None
     referencia: str | None = None
-    cidade: str = "Manacapuru"
+    cidade: str = "Itacoatiara"
     estado: str = "AM"
     latitude: float
     longitude: float

@@ -84,7 +84,7 @@ class Endereco(Base):
     bairro: Mapped[str] = mapped_column(String(100), nullable=False)
     complemento: Mapped[str] = mapped_column(String(200), nullable=True)
     referencia: Mapped[str] = mapped_column(String(200), nullable=True)
-    cidade: Mapped[str] = mapped_column(String(100), default="Manacapuru")
+    cidade: Mapped[str] = mapped_column(String(100), default="Itacoatiara")
     estado: Mapped[str] = mapped_column(String(2), default="AM")
 
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
@@ -132,9 +132,9 @@ class Pedido(Base):
     __tablename__ = "pedidos"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
-    cliente_id: Mapped[str] = mapped_column(ForeignKey("clientes.id"), index=True)
-    motoboy_id: Mapped[str] = mapped_column(ForeignKey("motoboys.id"), nullable=True, index=True)
-    endereco_id: Mapped[str] = mapped_column(ForeignKey("enderecos.id"))
+    cliente_id: Mapped[str] = mapped_column(ForeignKey("clientes.id", ondelete="RESTRICT"), index=True)
+    motoboy_id: Mapped[str] = mapped_column(ForeignKey("motoboys.id", ondelete="SET NULL"), nullable=True, index=True)
+    endereco_id: Mapped[str] = mapped_column(ForeignKey("enderecos.id", ondelete="RESTRICT"))
 
     status: Mapped[StatusPedido] = mapped_column(Enum(StatusPedido), default=StatusPedido.PENDENTE, index=True)
 

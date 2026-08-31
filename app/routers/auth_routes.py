@@ -5,12 +5,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import hash_senha, verificar_senha, criar_access_token
 from app.database import get_db
 from app.models import Usuario, Cliente, Motoboy
+from app.rate_limit import limitar_por_ip
 from app.schemas import RegistroUsuario, LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 
-@router.post("/registrar", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/registrar",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(limitar_por_ip(max_tentativas=5, janela_segundos=300))],
+)
 async def registrar(dados: RegistroUsuario, db: AsyncSession = Depends(get_db)):
     resultado = await db.execute(select(Usuario).where(Usuario.telefone == dados.telefone))
     if resultado.scalar_one_or_none() is not None:
@@ -36,7 +42,11 @@ async def registrar(dados: RegistroUsuario, db: AsyncSession = Depends(get_db)):
     return TokenResponse(access_token=token, usuario_id=usuario.id, tipo=usuario.tipo, nome=usuario.nome)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(limitar_por_ip(max_tentativas=10, janela_segundos=300))],
+)
 async def login(dados: LoginRequest, db: AsyncSession = Depends(get_db)):
     resultado = await db.execute(select(Usuario).where(Usuario.telefone == dados.telefone))
     usuario = resultado.scalar_one_or_none()
