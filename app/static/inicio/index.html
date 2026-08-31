@@ -9,18 +9,21 @@
 
 :root {
   --laranja: #FF6B35;
-  --vermelho: #C1121F;
-  --creme: #FFF8F0;
-  --escuro: #2B2B2B;
+  --vermelho: #E23744;
+  --fundo: #14120F;
+  --cartao: #1F1B16;
+  --texto: #F5EFE6;
+  --texto-secundario: #A89C8A;
   --verde: #4CAF50;
+  --borda: #2E281F;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background: var(--creme);
-  color: var(--escuro);
+  background: var(--fundo);
+  color: var(--texto);
   min-height: 100vh;
 }
 
@@ -29,12 +32,12 @@ body {
   padding: 60px 20px 80px;
   text-align: center;
   overflow: hidden;
-  background: linear-gradient(180deg, #FFEDE0 0%, var(--creme) 100%);
+  background: radial-gradient(circle at 50% 0%, #241D14 0%, var(--fundo) 60%);
 }
 
 .pin {
   position: absolute;
-  opacity: 0.08;
+  opacity: 0.06;
   font-size: 280px;
   top: -60px;
   right: -40px;
@@ -46,12 +49,11 @@ body {
 .eyebrow {
   display: inline-block;
   background: var(--laranja);
-  color: white;
+  color: #14120F;
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: 700;
   margin-bottom: 20px;
   position: relative;
   z-index: 1;
@@ -62,7 +64,7 @@ h1 {
   font-size: clamp(32px, 6vw, 56px);
   font-weight: 700;
   line-height: 1.1;
-  color: var(--vermelho);
+  color: var(--texto);
   margin-bottom: 16px;
   position: relative;
   z-index: 1;
@@ -70,7 +72,7 @@ h1 {
 
 .subtitulo {
   font-size: 18px;
-  color: #555;
+  color: var(--texto-secundario);
   max-width: 480px;
   margin: 0 auto;
   position: relative;
@@ -78,29 +80,30 @@ h1 {
 }
 
 .cards {
-  max-width: 720px;
+  max-width: 900px;
   margin: -40px auto 0;
   padding: 0 20px 60px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
   position: relative;
   z-index: 2;
 }
 
-@media (max-width: 560px) {
-  .cards { grid-template-columns: 1fr; }
+@media (max-width: 760px) {
+  .cards { grid-template-columns: 1fr; max-width: 480px; }
 }
 
 .card {
-  background: white;
+  background: var(--cartao);
   border-radius: 16px;
   padding: 32px 24px;
   text-align: center;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  border: 1px solid var(--borda);
   text-decoration: none;
-  color: var(--escuro);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  color: var(--texto);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -109,7 +112,7 @@ h1 {
 
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
 }
 
 .card:focus-visible {
@@ -117,9 +120,7 @@ h1 {
   outline-offset: 3px;
 }
 
-.card-icone {
-  font-size: 48px;
-}
+.card-icone { font-size: 48px; }
 
 .card h2 {
   font-family: 'Fraunces', serif;
@@ -129,23 +130,22 @@ h1 {
 
 .card p {
   font-size: 14px;
-  color: #666;
+  color: var(--texto-secundario);
   line-height: 1.5;
 }
 
 .card-cliente { border-top: 4px solid var(--laranja); }
 .card-motoboy { border-top: 4px solid var(--vermelho); }
+.card-admin { border-top: 4px solid var(--verde); }
 
 .rodape {
   text-align: center;
   padding: 24px 20px 40px;
   font-size: 13px;
-  color: #999;
+  color: var(--texto-secundario);
 }
 
-.rodape strong {
-  color: var(--verde);
-}
+.rodape strong { color: var(--verde); }
 </style>
 </head>
 <body>
@@ -168,6 +168,12 @@ h1 {
     <div class="card-icone">🛵</div>
     <h2>Sou motoboy</h2>
     <p>Ver pedidos disponíveis e aceitar entregas</p>
+  </a>
+
+  <a href="/admin/" class="card card-admin">
+    <div class="card-icone">🗺️</div>
+    <h2>Sou admin</h2>
+    <p>Acompanhar motoboys e pedidos no mapa em tempo real</p>
   </a>
 </div>
 

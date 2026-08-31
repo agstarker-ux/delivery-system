@@ -1,26 +1,114 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin — Sistema de Delivery Poranga</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    body { margin: 0; font-family: sans-serif; }
-    #map { height: 100vh; width: 100vw; }
-    #login-box {
-      position: absolute; top: 10px; left: 10px; z-index: 1000;
-      background: white; padding: 10px; border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.3);
-    }
-    #login-box input { display: block; margin-bottom: 6px; width: 200px; }
-    #status { position: absolute; bottom: 10px; left: 10px; z-index: 1000;
-      background: white; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Delivery Poranga</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --laranja: #FF6B35;
+  --laranja-escuro: #E85A2A;
+  --vermelho: #E23744;
+  --fundo: #14120F;
+  --cartao: #1F1B16;
+  --texto: #F5EFE6;
+  --texto-secundario: #A89C8A;
+  --verde: #4CAF50;
+  --borda: #2E281F;
+  --sombra-elevada: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+#map { height: 100vh; width: 100vw; }
+
+#login-box {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: var(--sombra-elevada);
+  width: 220px;
+}
+
+#login-box h1 {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--laranja);
+  margin-bottom: 14px;
+}
+
+#login-box input {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--borda);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: var(--texto);
+  background: var(--fundo);
+}
+
+#login-box input::placeholder { color: #5C5445; }
+
+#login-box input:focus {
+  outline: none;
+  border-color: var(--laranja);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.18);
+}
+
+#login-box button {
+  width: 100%;
+  padding: 10px;
+  background: var(--laranja);
+  color: #14120F;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+#login-box button:hover { background: var(--laranja-escuro); }
+
+#status {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 1000;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  color: var(--texto-secundario);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--sombra-elevada);
+}
+</style>
 </head>
 <body>
   <div id="login-box">
-    <input id="telefone" placeholder="telefone admin" value="92991234567">
-    <input id="senha" type="password" placeholder="senha">
+    <h1>Admin Poranga</h1>
+    <input id="telefone" placeholder="Telefone admin" value="92991234567">
+    <input id="senha" type="password" placeholder="Senha">
     <button onclick="conectar()">Conectar</button>
   </div>
   <div id="status">Desconectado</div>
