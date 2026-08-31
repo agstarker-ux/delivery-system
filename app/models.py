@@ -23,6 +23,23 @@ class StatusPedido(str, enum.Enum):
     CANCELADO = "cancelado"
 
 
+# Transições válidas: de onde -> pra onde pode ir.
+# ACEITO só é alcançado via /pedidos/{id}/aceitar, nunca por essa rota de status.
+TRANSICOES_VALIDAS_PEDIDO: dict["StatusPedido", set["StatusPedido"]] = {
+    StatusPedido.PENDENTE: {StatusPedido.CANCELADO},
+    StatusPedido.ACEITO: {StatusPedido.A_CAMINHO_COLETA, StatusPedido.CANCELADO},
+    StatusPedido.A_CAMINHO_COLETA: {StatusPedido.COLETADO, StatusPedido.CANCELADO},
+    StatusPedido.COLETADO: {StatusPedido.A_CAMINHO_ENTREGA, StatusPedido.CANCELADO},
+    StatusPedido.A_CAMINHO_ENTREGA: {StatusPedido.ENTREGUE, StatusPedido.CANCELADO},
+    StatusPedido.ENTREGUE: set(),
+    StatusPedido.CANCELADO: set(),
+}
+
+
+def transicao_e_valida(status_atual: "StatusPedido", novo_status: "StatusPedido") -> bool:
+    return novo_status in TRANSICOES_VALIDAS_PEDIDO.get(status_atual, set())
+
+
 class StatusMotoboy(str, enum.Enum):
     OFFLINE = "offline"
     DISPONIVEL = "disponivel"

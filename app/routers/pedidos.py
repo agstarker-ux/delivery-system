@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import exigir_tipo, obter_usuario_atual
 from app.database import get_db
 from app.geofence import validar_dentro_da_area_piloto
-from app.models import Pedido, Cliente, Motoboy, Usuario, Endereco, StatusPedido, StatusMotoboy
+from app.models import Pedido, Cliente, Motoboy, Usuario, Endereco, StatusPedido, StatusMotoboy, transicao_e_valida
 from app.schemas import PedidoCreate, PedidoResponse, PedidoStatusUpdate
 from app.websocket_manager import gerenciador
 
@@ -131,6 +131,12 @@ async def atualizar_status_pedido(
         motoboy = resultado_mb.scalar_one_or_none()
         if motoboy is None or pedido.motoboy_id != motoboy.id:
             raise HTTPException(status_code=403, detail="Este pedido não pertence a você")
+
+    if not transicao_e_valida(pedido.status, dados.status):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Transição inválida: não é possível ir de '{pedido.status.value}' para '{dados.status.value}'",
+        )
 
     pedido.status = dados.status
     if dados.status == StatusPedido.ENTREGUE:
