@@ -2,116 +2,453 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Delivery Poranga — Cliente</title>
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="estilo.css" />
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: sans-serif; background: #f5f5f5; }
-    .hidden { display: none !important; }
-    #app { max-width: 480px; margin: 0 auto; padding: 16px; }
-    h2 { margin-top: 0; }
-    input, textarea, select {
-      width: 100%; padding: 8px; margin-bottom: 8px;
-      border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-    }
-    button {
-      width: 100%; padding: 10px; background: #2563eb; color: white;
-      border: none; border-radius: 4px; font-size: 15px; cursor: pointer;
-      margin-bottom: 8px;
-    }
-    button.secundario { background: #6b7280; }
-    button.perigo { background: #dc2626; }
-    #map-picker, #map-acompanhar { height: 260px; width: 100%; border-radius: 6px; margin-bottom: 8px; }
-    .card { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-    .status-badge {
-      display: inline-block; padding: 4px 10px; border-radius: 12px;
-      font-size: 12px; font-weight: bold; color: white;
-    }
-    #msg { color: #dc2626; font-size: 13px; margin-bottom: 8px; }
-    #tabs button { width: 48%; display: inline-block; }
-    small { color: #666; }
-  </style>
 </head>
+
 <body>
+
 <div id="app">
-  <h2>🛵 Delivery Poranga</h2>
-  <div id="msg"></div>
+
+  <!-- TOPO -->
+  <header class="topo">
+    <div class="topo-icone">🛵</div>
+    <h1>Delivery Poranga</h1>
+  </header>
+
+  <div id="mensagem-flutuante"></div>
 
   <!-- LOGIN / CADASTRO -->
-  <div id="auth-section" class="card">
-    <div id="tabs">
-      <button onclick="mostrarAba('login')">Entrar</button>
-      <button class="secundario" onclick="mostrarAba('cadastro')">Criar conta</button>
+  <section id="auth-section" class="cartao">
+
+    <div class="abas">
+      <button id="btn-aba-login" class="ativa" onclick="mostrarAba('login')">
+        Entrar
+      </button>
+
+      <button id="btn-aba-cadastro" onclick="mostrarAba('cadastro')">
+        Criar conta
+      </button>
     </div>
 
     <div id="aba-login">
-      <input id="login-telefone" placeholder="Telefone (ex: 92999999999)">
-      <input id="login-senha" type="password" placeholder="Senha">
+
+      <label for="login-telefone">Telefone</label>
+      <input
+        id="login-telefone"
+        placeholder="92999999999"
+        autocomplete="tel"
+      >
+
+      <label for="login-senha">Senha</label>
+      <input
+        id="login-senha"
+        type="password"
+        placeholder="Sua senha"
+        autocomplete="current-password"
+      >
+
       <button onclick="fazerLogin()">Entrar</button>
+
     </div>
 
     <div id="aba-cadastro" class="hidden">
-      <input id="cad-nome" placeholder="Seu nome">
-      <input id="cad-telefone" placeholder="Telefone (ex: 92999999999)">
-      <input id="cad-senha" type="password" placeholder="Senha (mín. 6 caracteres)">
-      <button onclick="fazerCadastro()">Criar conta</button>
-    </div>
-  </div>
 
-  <!-- LOGADO -->
-  <div id="logado-section" class="hidden">
-    <div class="card">
-      <strong id="saudacao"></strong>
-      <button class="secundario" onclick="sair()">Sair</button>
+      <label for="cad-nome">Seu nome</label>
+      <input
+        id="cad-nome"
+        placeholder="Seu nome"
+        autocomplete="name"
+      >
+
+      <label for="cad-telefone">Telefone</label>
+      <input
+        id="cad-telefone"
+        placeholder="92999999999"
+        autocomplete="tel"
+      >
+
+      <label for="cad-senha">Senha</label>
+      <input
+        id="cad-senha"
+        type="password"
+        placeholder="Mínimo 6 caracteres"
+        autocomplete="new-password"
+      >
+
+      <button onclick="fazerCadastro()">Criar conta</button>
+
     </div>
+
+  </section>
+
+
+  <!-- ÁREA LOGADA -->
+  <main id="logado-section" class="hidden">
+
+    <!-- SAUDAÇÃO -->
+    <section class="cartao">
+      <div class="saudacao-caixa">
+        <span id="saudacao" class="saudacao-nome"></span>
+        <button class="secundario pequeno" onclick="sair()">Sair</button>
+      </div>
+    </section>
+
 
     <!-- ENDEREÇOS -->
-    <div id="enderecos-section" class="card">
-      <h3>Meus endereços</h3>
-      <div id="lista-enderecos"></div>
-      <button onclick="mostrarFormEndereco()">+ Novo endereço</button>
+    <section id="enderecos-section" class="cartao">
 
+      <h3>Onde entregar?</h3>
+
+      <div id="lista-enderecos"></div>
+
+      <button onclick="mostrarFormEndereco()">
+        + Adicionar endereço
+      </button>
+
+
+      <!-- NOVO ENDEREÇO -->
       <div id="form-endereco" class="hidden">
-        <p><small>Clica no mapa pra marcar o local de entrega</small></p>
-        <div id="map-picker"></div>
-        <input id="end-apelido" placeholder="Apelido (ex: Casa, Trabalho)" value="Casa">
-        <input id="end-logradouro" placeholder="Rua/Avenida">
-        <input id="end-numero" placeholder="Número">
-        <input id="end-bairro" placeholder="Bairro" value="Poranga">
-        <input id="end-complemento" placeholder="Complemento (opcional)">
-        <input id="end-referencia" placeholder="Ponto de referência (opcional)">
-        <input id="end-cidade" placeholder="Cidade" value="Itacoatiara">
-        <input id="end-estado" placeholder="Estado" value="AM">
-        <button onclick="salvarEndereco()">Salvar endereço</button>
-        <button class="secundario" onclick="esconderFormEndereco()">Cancelar</button>
+
+        <div class="separador"></div>
+
+        <div class="passo-titulo">
+          <span class="numero-passo">1</span>
+          <div>
+            <strong>Novo endereço</strong>
+            <small>Marque o local no mapa</small>
+          </div>
+        </div>
+
+        <div class="dica-mapa">
+          📍 Toque no mapa para marcar o local de entrega
+        </div>
+
+        <div class="mapa-caixa">
+          <div id="map-picker"></div>
+        </div>
+
+        <label for="end-apelido">Apelido</label>
+        <input
+          id="end-apelido"
+          placeholder="Ex: Casa, Trabalho"
+          value="Casa"
+        >
+
+        <label for="end-logradouro">Rua/Avenida</label>
+        <input
+          id="end-logradouro"
+          placeholder="Rua ou avenida"
+        >
+
+        <label for="end-numero">Número</label>
+        <input
+          id="end-numero"
+          placeholder="Número"
+        >
+
+        <label for="end-bairro">Bairro</label>
+        <input
+          id="end-bairro"
+          placeholder="Bairro"
+          value="Poranga"
+        >
+
+        <label for="end-complemento">Complemento</label>
+        <input
+          id="end-complemento"
+          placeholder="Apartamento, casa, etc. (opcional)"
+        >
+
+        <label for="end-referencia">Referência</label>
+        <input
+          id="end-referencia"
+          placeholder="Ponto de referência (opcional)"
+        >
+
+        <input
+          id="end-cidade"
+          value="Itacoatiara"
+          hidden
+        >
+
+        <input
+          id="end-estado"
+          value="AM"
+          hidden
+        >
+
+        <button onclick="salvarEndereco()">
+          Salvar endereço
+        </button>
+
+        <button
+          class="secundario"
+          onclick="esconderFormEndereco()"
+        >
+          Cancelar
+        </button>
+
       </div>
-    </div>
+
+    </section>
+
 
     <!-- NOVO PEDIDO -->
-    <div id="pedido-section" class="card hidden">
-      <h3>Fazer pedido</h3>
-      <p><small>Clica no mapa pra marcar o estabelecimento (origem)</small></p>
-      <div id="map-picker-origem" style="height:220px;border-radius:6px;margin-bottom:8px;"></div>
-      <input id="ped-origem-nome" placeholder="Nome do estabelecimento">
-      <textarea id="ped-itens" placeholder="O que você quer pedir?" rows="3"></textarea>
-      <input id="ped-valor" type="number" step="0.01" placeholder="Valor total (R$)">
-      <input id="ped-taxa" type="number" step="0.01" placeholder="Taxa de entrega (R$)" value="0">
-      <input id="ped-obs" placeholder="Observações (opcional)">
-      <button onclick="criarPedido()">Confirmar pedido</button>
-    </div>
+    <section id="pedido-section" class="cartao hidden">
+
+      <!-- CABEÇALHO DO WIZARD -->
+      <div class="pedido-cabecalho">
+
+        <div>
+          <h3>Fazer pedido</h3>
+          <small id="pedido-etapa-texto">Passo 1 de 3</small>
+        </div>
+
+        <button
+          class="secundario pequeno"
+          onclick="cancelarPedidoWizard()"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <!-- BARRA DE PROGRESSO -->
+      <div class="progresso">
+        <div id="progresso-barra"></div>
+      </div>
+
+
+      <!-- PASSO 1 -->
+      <div id="pedido-passo-1" class="pedido-passo">
+
+        <div class="passo-titulo">
+          <span class="numero-passo">1</span>
+
+          <div>
+            <strong>Onde comprar?</strong>
+            <small>Marque o estabelecimento</small>
+          </div>
+        </div>
+
+        <div class="dica-mapa">
+          📍 Toque no mapa para indicar onde o motoboy vai buscar
+        </div>
+
+        <div class="mapa-caixa">
+          <div id="map-picker-origem"></div>
+        </div>
+
+        <label for="ped-origem-nome">
+          Nome do estabelecimento
+        </label>
+
+        <input
+          id="ped-origem-nome"
+          placeholder="Ex: Restaurante do João"
+          autocomplete="organization"
+        >
+
+        <button onclick="irParaPassoPedido(2)">
+          Continuar
+        </button>
+
+      </div>
+
+
+      <!-- PASSO 2 -->
+      <div id="pedido-passo-2" class="pedido-passo hidden">
+
+        <div class="passo-titulo">
+          <span class="numero-passo">2</span>
+
+          <div>
+            <strong>O que você quer?</strong>
+            <small>Informe seu pedido e o valor</small>
+          </div>
+        </div>
+
+        <label for="ped-itens">
+          O que comprar?
+        </label>
+
+        <textarea
+          id="ped-itens"
+          placeholder="Ex: 1 X-Bacon, 1 Coca-Cola 2L"
+          rows="4"
+        ></textarea>
+
+        <label for="ped-valor">
+          Valor dos produtos
+        </label>
+
+        <div class="campo-dinheiro">
+          <span>R$</span>
+          <input
+            id="ped-valor"
+            type="number"
+            step="0.01"
+            min="0.01"
+            placeholder="0,00"
+          >
+        </div>
+
+        <label for="ped-taxa">
+          Taxa de entrega
+        </label>
+
+        <div class="campo-dinheiro">
+          <span>R$</span>
+          <input
+            id="ped-taxa"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0,00"
+            value="0"
+          >
+        </div>
+
+        <label for="ped-obs">
+          Observação
+        </label>
+
+        <input
+          id="ped-obs"
+          placeholder="Alguma instrução? (opcional)"
+        >
+
+        <div class="botoes-wizard">
+
+          <button
+            class="secundario"
+            onclick="irParaPassoPedido(1)"
+          >
+            Voltar
+          </button>
+
+          <button onclick="irParaPassoPedido(3)">
+            Revisar pedido
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- PASSO 3 -->
+      <div id="pedido-passo-3" class="pedido-passo hidden">
+
+        <div class="passo-titulo">
+          <span class="numero-passo">3</span>
+
+          <div>
+            <strong>Confirmar pedido</strong>
+            <small>Confira antes de enviar</small>
+          </div>
+        </div>
+
+        <div class="resumo-pedido">
+
+          <div class="resumo-item">
+            <span>🏪 Estabelecimento</span>
+            <strong id="resumo-origem">-</strong>
+          </div>
+
+          <div class="resumo-item">
+            <span>🛍️ Pedido</span>
+            <strong id="resumo-itens">-</strong>
+          </div>
+
+          <div class="resumo-item">
+            <span>📍 Entrega</span>
+            <strong id="resumo-endereco">-</strong>
+          </div>
+
+          <div class="resumo-item">
+            <span>💰 Produtos</span>
+            <strong id="resumo-valor">R$ 0,00</strong>
+          </div>
+
+          <div class="resumo-item">
+            <span>🛵 Entrega</span>
+            <strong id="resumo-taxa">R$ 0,00</strong>
+          </div>
+
+          <div class="resumo-total">
+            <span>Total</span>
+            <strong id="resumo-total">R$ 0,00</strong>
+          </div>
+
+        </div>
+
+        <div id="resumo-observacao" class="resumo-observacao hidden">
+          <small>Observação</small>
+          <p id="resumo-obs-texto"></p>
+        </div>
+
+        <div class="botoes-wizard">
+
+          <button
+            class="secundario"
+            onclick="irParaPassoPedido(2)"
+          >
+            Voltar
+          </button>
+
+          <button
+            class="sucesso"
+            onclick="criarPedido()"
+          >
+            Confirmar pedido
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
 
     <!-- ACOMPANHAMENTO -->
-    <div id="acompanhar-section" class="card hidden">
-      <h3>Seu pedido</h3>
-      <p>Status: <span id="pedido-status" class="status-badge">-</span></p>
-      <div id="map-acompanhar"></div>
-      <button class="secundario" onclick="voltarParaNovoPedido()">Fazer novo pedido</button>
-    </div>
-  </div>
+    <section id="acompanhar-section" class="cartao hidden">
+
+      <div class="acompanhamento-cabecalho">
+        <div>
+          <h3>Seu pedido</h3>
+          <small>Acompanhe a entrega em tempo real</small>
+        </div>
+      </div>
+
+      <p class="status-linha">
+        Status:
+        <span id="pedido-status" class="status-badge">-</span>
+      </p>
+
+      <div class="mapa-caixa">
+        <div id="map-acompanhar"></div>
+      </div>
+
+      <button
+        class="secundario"
+        onclick="voltarParaNovoPedido()"
+      >
+        Fazer novo pedido
+      </button>
+
+    </section>
+
+  </main>
+
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="cliente.js"></script>
+
 </body>
 </html>
