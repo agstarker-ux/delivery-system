@@ -205,6 +205,13 @@ async function apiFetch(url, opcoes = {}) {
 }
 
 
+async function obterTokenWs() {
+  const resp = await apiFetch('/auth/ws-token', { method: 'POST' });
+  const data = await resp.json();
+  return data.ws_token;
+}
+
+
 /* -------------------------------------------------------------------------- */
 /* ENDEREÇOS                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -1036,10 +1043,18 @@ async function verificarStatusPedido(pedidoId) {
 }
 
 
-function conectarWebSocketPedido(pedidoId) {
+async function conectarWebSocketPedido(pedidoId) {
 
   if (wsAcompanhar) {
     wsAcompanhar.close();
+  }
+
+  let wsToken;
+
+  try {
+    wsToken = await obterTokenWs();
+  } catch (e) {
+    return;
   }
 
   const wsProtocol =
@@ -1049,7 +1064,7 @@ function conectarWebSocketPedido(pedidoId) {
 
   wsAcompanhar =
     new WebSocket(
-      `${wsProtocol}://${location.host}/ws/cliente/${pedidoId}?token=${token}`
+      `${wsProtocol}://${location.host}/ws/cliente/${pedidoId}?token=${wsToken}`
     );
 
   wsAcompanhar.onmessage = (event) => {

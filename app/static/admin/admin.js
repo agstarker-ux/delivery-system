@@ -56,8 +56,27 @@ async function conectar() {
   const data = await resp.json();
   const token = data.access_token;
 
+  let wsTokenResp;
+  try {
+    wsTokenResp = await fetch('/auth/ws-token', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  } catch (e) {
+    statusEl().textContent = 'Erro de rede ao obter token do WebSocket';
+    return;
+  }
+
+  if (!wsTokenResp.ok) {
+    statusEl().textContent = 'Falha ao obter token do WebSocket';
+    return;
+  }
+
+  const wsTokenData = await wsTokenResp.json();
+  const wsToken = wsTokenData.ws_token;
+
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${wsProtocol}://${location.host}/ws/admin?token=${token}`);
+  const ws = new WebSocket(`${wsProtocol}://${location.host}/ws/admin?token=${wsToken}`);
 
   ws.onopen = () => { statusEl().textContent = 'Conectado — aguardando GPS...'; };
 

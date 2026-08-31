@@ -1,4 +1,3 @@
-// Centro do Poranga — mesma coordenada usada no admin/cliente
 const CENTRO_PORANGA = [-3.110897, -58.458911];
 const RAIO_KM = 3;
 
@@ -90,6 +89,12 @@ async function apiFetch(url, opcoes = {}) {
   return resp;
 }
 
+async function obterTokenWs() {
+  const resp = await apiFetch('/auth/ws-token', { method: 'POST' });
+  const data = await resp.json();
+  return data.ws_token;
+}
+
 // --- STATUS DISPONÍVEL / OFFLINE -------------------------------------------
 
 function atualizarBadgeStatus() {
@@ -170,7 +175,7 @@ async function aceitarPedido(pedidoId) {
     document.getElementById('pedido-atual-section').classList.remove('hidden');
 
     renderizarPedidoAtual();
-    conectarWebSocketGPS();
+    await conectarWebSocketGPS();
     iniciarEnvioGPS();
   } catch (e) { /* já tratado */ }
 }
@@ -270,11 +275,19 @@ function finalizarPedido() {
 
 // --- WEBSOCKET GPS (mesmo padrão de simular_gps.py) -------------------------
 
-function conectarWebSocketGPS() {
+async function conectarWebSocketGPS() {
   if (ws) return;
 
+  let wsToken;
+
+  try {
+    wsToken = await obterTokenWs();
+  } catch (e) {
+    return;
+  }
+
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${wsProtocol}://${location.host}/ws/motoboy/${motoboyId}?token=${token}`);
+  ws = new WebSocket(`${wsProtocol}://${location.host}/ws/motoboy/${motoboyId}?token=${wsToken}`);
 
   ws.onopen = () => console.log('WebSocket GPS conectado.');
   ws.onmessage = (event) => console.log('Servidor:', event.data);

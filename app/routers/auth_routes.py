@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import hash_senha, verificar_senha, criar_access_token
+from app.auth import hash_senha, verificar_senha, criar_access_token, obter_usuario_atual
 from app.database import get_db
 from app.models import Usuario, Cliente, Motoboy
 from app.rate_limit import limitar_por_ip
 from app.schemas import RegistroUsuario, LoginRequest, TokenResponse
+from app.ws_tokens import gerar_token_ws
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
@@ -59,3 +60,9 @@ async def login(dados: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     token = criar_access_token({"sub": usuario.id, "tipo": usuario.tipo})
     return TokenResponse(access_token=token, usuario_id=usuario.id, tipo=usuario.tipo, nome=usuario.nome)
+
+
+@router.post("/ws-token")
+async def obter_token_ws(usuario: Usuario = Depends(obter_usuario_atual)):
+    token = gerar_token_ws(usuario.id)
+    return {"ws_token": token}

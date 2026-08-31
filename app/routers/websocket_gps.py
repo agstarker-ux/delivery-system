@@ -6,22 +6,27 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import decodificar_token
 from app.database import AsyncSessionLocal
 from app.geofence import esta_na_area_piloto
 from app.models import Motoboy, Usuario, PosicaoGPS, Pedido, Cliente
 from app.schemas import PosicaoGPSInput
 from app.websocket_manager import gerenciador
+from app.ws_tokens import validar_token_ws
 
 logger = logging.getLogger("websocket_gps")
 router = APIRouter(tags=["WebSocket GPS"])
 
 
 async def _autenticar_websocket(token: str) -> dict | None:
-    try:
-        return decodificar_token(token)
-    except Exception:
+    usuario_id = validar_token_ws(token)
+    if usuario_id is None:
         return None
+    async with AsyncSessionLocal() as db:
+        resultado = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+        usuario = resultado.scalar_one_or_none()
+        if usuario is None:
+            return None
+        return {"sub": usuario.id, "tipo": usuario.tipo}
 
 
 @router.websocket("/ws/motoboy/{motoboy_id}")
