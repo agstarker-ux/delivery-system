@@ -278,7 +278,7 @@ function mostrarFormEndereco() {
 
     mapPicker = L
       .map('map-picker')
-      .setView(CENTRO_PORANGA, 14);
+      .setView(CENTRO_PORANGA, 17);
 
     L.tileLayer(
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -464,7 +464,7 @@ function iniciarWizardPedido() {
 
     mapPickerOrigem = L
       .map('map-picker-origem')
-      .setView(CENTRO_PORANGA, 14);
+      .setView(CENTRO_PORANGA, 17);
 
     L.tileLayer(
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -931,7 +931,7 @@ function iniciarAcompanhamento(pedido) {
 
     mapAcompanhar = L
       .map('map-acompanhar')
-      .setView(CENTRO_PORANGA, 14);
+      .setView(CENTRO_PORANGA, 17);
 
     L.tileLayer(
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -1152,4 +1152,9 @@ if (token && nomeUsuario) {
     `Olá, ${nomeUsuario}!`;
 
   carregarEnderecos();
+}
+
+
+function alternarDetalhesEndereco() {
+    document.getElementById('detalhes-endereco-extra').classList.toggle('hidden');
 }

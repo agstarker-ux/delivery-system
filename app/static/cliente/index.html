@@ -157,6 +157,12 @@
           value="Poranga"
         >
 
+        <button type="button" class="secundario pequeno" onclick="alternarDetalhesEndereco()" style="margin-top:10px;">
+          + Detalhes extras (opcional)
+        </button>
+
+        <div id="detalhes-endereco-extra" class="hidden">
+
         <label for="end-complemento">Complemento</label>
         <input
           id="end-complemento"
@@ -168,6 +174,8 @@
           id="end-referencia"
           placeholder="Ponto de referência (opcional)"
         >
+
+        </div>
 
         <input
           id="end-cidade"
