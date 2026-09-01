@@ -1,4 +1,4 @@
-const CENTRO_PORANGA = [-3.110897, -58.458911];
+const CENTRO_PORANGA = [-3.115, -58.435];
 const RAIO_KM = 3;
 
 const SEQUENCIA_STATUS = [
@@ -26,6 +26,7 @@ let statusMotoboy = 'offline';
 let pedidoAtual = null;
 let ws = null;
 let watchId = null;
+let ultimoEnvioGps = 0;
 let pollingPendentes = null;
 let mapa = null;
 let marcadorOrigemMapa = null;
@@ -61,7 +62,7 @@ async function fazerLogin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telefone, senha })
     });
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
     if (!resp.ok) { mostrarMsg(data.detail || 'Telefone ou senha incorretos'); return; }
     if (data.tipo !== 'motoboy') { mostrarMsg('Esta conta não é de motoboy.'); return; }
 
@@ -110,9 +111,20 @@ async function apiFetch(url, opcoes = {}) {
   return resp;
 }
 
+async function lerJsonSeguro(resp, fallback = {}) {
+  const contentType = resp.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return fallback;
+  try {
+    return await resp.json();
+  } catch (e) {
+    return fallback;
+  }
+}
+
+
 async function obterTokenWs() {
   const resp = await apiFetch('/auth/ws-token', { method: 'POST' });
-  const data = await resp.json();
+  const data = await lerJsonSeguro(resp);
   return data.ws_token;
 }
 
@@ -135,7 +147,7 @@ async function carregarPedidoAtual() {
   try {
     const resp = await apiFetch('/pedidos/me/atual');
     if (!resp.ok) return;
-    const pedido = await resp.json();
+    const pedido = await lerJsonSeguro(resp, null);
     if (!pedido) return;
 
     pedidoAtual = pedido;
@@ -164,7 +176,7 @@ async function alternarStatus() {
       method: 'PATCH',
       body: JSON.stringify({ status: novoStatus })
     });
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
     if (!resp.ok) { mostrarMsg(data.detail || 'Erro ao mudar status'); return; }
 
     statusMotoboy = novoStatus;
@@ -188,7 +200,11 @@ async function carregarPendentes() {
 
   try {
     const resp = await apiFetch('/pedidos/pendentes');
-    const pedidos = await resp.json();
+    const pedidos = await lerJsonSeguro(resp, []);
+    if (!Array.isArray(pedidos)) {
+      mostrarMsg('Resposta inválida do servidor ao carregar pedidos.');
+      return;
+    }
     renderizarPendentes(pedidos);
   } catch (e) { /* já tratado */ }
 }
@@ -221,7 +237,7 @@ function renderizarPendentes(pedidos) {
 async function aceitarPedido(pedidoId) {
   try {
     const resp = await apiFetch(`/pedidos/${pedidoId}/aceitar`, { method: 'POST' });
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
     if (!resp.ok) { mostrarMsg(data.detail || 'Erro ao aceitar pedido'); return; }
 
     pedidoAtual = data;
@@ -295,7 +311,7 @@ async function avancarStatus() {
       method: 'PATCH',
       body: JSON.stringify({ status: proximoStatus })
     });
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
     if (!resp.ok) { mostrarMsg(data.detail || 'Erro ao avançar status'); return; }
 
     pedidoAtual = data;
@@ -315,7 +331,7 @@ async function cancelarPedido() {
       method: 'PATCH',
       body: JSON.stringify({ status: 'cancelado' })
     });
-    if (!resp.ok) { const data = await resp.json(); mostrarMsg(data.detail || 'Erro ao cancelar'); return; }
+    if (!resp.ok) { const data = await lerJsonSeguro(resp); mostrarMsg(data.detail || 'Erro ao cancelar'); return; }
     finalizarPedido();
   } catch (e) { /* já tratado */ }
 }
@@ -353,7 +369,14 @@ async function conectarWebSocketGPS() {
   ws = new WebSocket(`${wsProtocol}://${location.host}/ws/motoboy/${motoboyId}?token=${wsToken}`);
 
   ws.onopen = () => console.log('WebSocket GPS conectado.');
-  ws.onmessage = (event) => console.log('Servidor:', event.data);
+  ws.onmessage = (event) => {
+    try {
+      const resposta = JSON.parse(event.data);
+      if (resposta.erro) mostrarMsg(resposta.erro);
+    } catch (e) {
+      console.warn('Resposta inesperada do servidor GPS');
+    }
+  };
   ws.onerror = (err) => console.error('Erro WebSocket GPS:', err);
   ws.onclose = () => { console.log('WebSocket GPS fechado.'); ws = null; };
 }
@@ -378,8 +401,10 @@ function iniciarEnvioGPS() {
         pedido_id: pedidoAtual ? pedidoAtual.id : null
       };
 
-      if (ws && ws.readyState === WebSocket.OPEN) {
+      const agora = Date.now();
+      if (ws && ws.readyState === WebSocket.OPEN && agora - ultimoEnvioGps >= 1000) {
         ws.send(JSON.stringify(payload));
+        ultimoEnvioGps = agora;
       }
 
       atualizarMarcadorMotoboyNoMapa(posicao.coords.latitude, posicao.coords.longitude);
@@ -390,6 +415,7 @@ function iniciarEnvioGPS() {
 }
 
 function pararEnvioGPS() {
+  ultimoEnvioGps = 0;
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;

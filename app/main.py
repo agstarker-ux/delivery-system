@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     await init_db()
     logging.info("Banco de dados inicializado.")
     yield
@@ -46,10 +46,10 @@ async def security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' https://unpkg.com; "
-        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
         "img-src 'self' data: https://*.tile.openstreetmap.org; "
         "connect-src 'self'; "
-        "font-src 'self' data:; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
         "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     )
     if not settings.DEBUG:

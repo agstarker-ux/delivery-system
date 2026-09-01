@@ -1,4 +1,4 @@
-const CENTRO_PORANGA = [-3.110897, -58.458911];
+const CENTRO_PORANGA = [-3.115, -58.435];
 const RAIO_KM = 3;
 
 let token = sessionStorage.getItem('cliente_token') || null;
@@ -96,7 +96,7 @@ async function fazerCadastro() {
       })
     });
 
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
 
     if (!resp.ok) {
       mostrarMsg(data.detail || 'Erro ao cadastrar');
@@ -132,7 +132,7 @@ async function fazerLogin() {
       })
     });
 
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
 
     if (!resp.ok) {
       mostrarMsg(data.detail || 'Telefone ou senha incorretos');
@@ -210,9 +210,20 @@ async function apiFetch(url, opcoes = {}) {
 }
 
 
+async function lerJsonSeguro(resp, fallback = {}) {
+  const contentType = resp.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return fallback;
+  try {
+    return await resp.json();
+  } catch (e) {
+    return fallback;
+  }
+}
+
+
 async function obterTokenWs() {
   const resp = await apiFetch('/auth/ws-token', { method: 'POST' });
-  const data = await resp.json();
+  const data = await lerJsonSeguro(resp);
   return data.ws_token;
 }
 
@@ -224,7 +235,11 @@ async function obterTokenWs() {
 async function carregarEnderecos() {
   try {
     const resp = await apiFetch('/enderecos/');
-    const enderecos = await resp.json();
+    const enderecos = await lerJsonSeguro(resp, []);
+    if (!Array.isArray(enderecos)) {
+      mostrarMsg('Resposta inválida do servidor ao carregar endereços.');
+      return;
+    }
 
     const lista = document.getElementById('lista-enderecos');
 
@@ -392,7 +407,7 @@ async function salvarEndereco() {
       }
     );
 
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
 
     if (!resp.ok) {
       mostrarMsg(
@@ -420,7 +435,7 @@ async function removerEndereco(id) {
   try {
     const resp = await apiFetch(`/enderecos/${id}`, { method: 'DELETE' });
     if (!resp.ok) {
-      const data = await resp.json();
+      const data = await lerJsonSeguro(resp);
       mostrarMsg(data.detail || 'Não foi possível remover o endereço.');
       return;
     }
@@ -877,7 +892,7 @@ async function criarPedido() {
       }
     );
 
-    const data = await resp.json();
+    const data = await lerJsonSeguro(resp);
 
     if (!resp.ok) {
 
@@ -932,7 +947,7 @@ async function carregarPedidoAtivo() {
   try {
     const resp = await apiFetch('/pedidos/me/atual');
     if (!resp.ok) return;
-    const pedido = await resp.json();
+    const pedido = await lerJsonSeguro(resp, null);
     if (pedido) iniciarAcompanhamento(pedido);
   } catch (e) {
     /* restauração opcional da sessão */
@@ -1035,7 +1050,7 @@ async function verificarStatusPedido(pedidoId) {
       );
 
     const pedido =
-      await resp.json();
+      await lerJsonSeguro(resp);
 
     atualizarStatusVisual(
       pedido.status

@@ -20,8 +20,8 @@ PEDIDO_ID = os.getenv("SIMULADOR_PEDIDO_ID") or None
 URL = f"ws://localhost:8000/ws/motoboy/{MOTOBOY_ID}?token={TOKEN}"
 
 # Centro do Poranga (mesma coordenada estimada do config.py)
-CENTRO_LAT = -3.110897
-CENTRO_LON = -58.458911
+CENTRO_LAT = -3.115
+CENTRO_LON = -58.435
 RAIO_MOVIMENTO = 0.006  # graus (~1.1km) — o quanto o motoboy "anda" ao redor do centro
 
 

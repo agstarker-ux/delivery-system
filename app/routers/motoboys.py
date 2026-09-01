@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import exigir_tipo, obter_usuario_atual
+from app.auth import exigir_tipo
 from app.database import get_db
 from app.models import Motoboy, StatusMotoboy, Usuario
 from app.schemas import MotoboyResponse, AtualizacaoStatusMotoboy

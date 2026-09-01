@@ -52,3 +52,11 @@ Foi adicionada uma política de segurança de conteúdo ao backend. Ela limita s
 A revisão final confirmou que a aplicação não contém ficheiros `.env` rastreados nem credenciais no repositório. Os logs encontrados registam identificadores operacionais de motoboys e pedidos, mas não registam palavras-passe ou tokens de autenticação.
 
 A bateria final passou com **10 testes automatizados aprovados**. Ela cobre a saúde da aplicação, páginas estáticas, cabeçalhos de segurança, contratos de entrada, transições de pedidos, concorrência de sessões WebSocket e uso único/expiração dos tokens temporários. A sintaxe dos três scripts JavaScript e a compilação dos módulos Python também foram aprovadas.
+
+## Investigação de erros apresentados no frontend
+
+A investigação encontrou quatro causas de falhas ou mensagens enganosas. O frontend mostrava um erro genérico quando recebia uma resposta HTML ou vazia em vez de JSON; foram adicionados leitores seguros de resposta no cliente, motoboy e administrador. O envio de GPS podia acontecer mais rapidamente do que o limite de um segundo aceite pelo backend; o motoboy agora limita o envio no navegador e mostra as mensagens devolvidas pelo servidor.
+
+Também havia uma diferença entre o centro da área piloto desenhado nos mapas e o centro usado pelo backend para rejeitar coordenadas. Os mapas e o simulador foram alinhados com as coordenadas configuradas no backend. Por fim, o painel administrativo ignorava eventos como novo pedido, pedido aceite e mudança de estado; agora exibe esses eventos no seu indicador de estado.
+
+Durante a reprodução local, o backend não conseguiu iniciar porque não havia um PostgreSQL disponível em `127.0.0.1:5432` e a variável `DATABASE_URL` não estava configurada no ambiente. Nesse cenário, o frontend servido separadamente apresenta erro de rede porque a API não está em execução. Isso é uma falha de configuração/infraestrutura local, não uma falha corrigível apenas no JavaScript. O serviço precisa de uma base PostgreSQL acessível e de `DATABASE_URL` configurada para o login e os pedidos funcionarem.

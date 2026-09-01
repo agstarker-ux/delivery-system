@@ -1,4 +1,4 @@
-const CENTRO_PORANGA = [-3.110897, -58.458911];
+const CENTRO_PORANGA = [-3.115, -58.435];
 const RAIO_KM = 3;
 
 const map = L.map('map').setView(CENTRO_PORANGA, 14);
@@ -43,6 +43,16 @@ function statusEl() {
   return document.getElementById('status');
 }
 
+async function lerJsonSeguro(resp, fallback = {}) {
+  const contentType = resp.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return fallback;
+  try {
+    return await resp.json();
+  } catch (e) {
+    return fallback;
+  }
+}
+
 async function conectar() {
   const telefone = document.getElementById('telefone').value;
   const senha = document.getElementById('senha').value;
@@ -64,7 +74,7 @@ async function conectar() {
     return;
   }
 
-  const data = await resp.json();
+  const data = await lerJsonSeguro(resp);
   if (data.tipo !== 'admin') {
     statusEl().textContent = 'Esta conta não é de administrador';
     return;
@@ -87,7 +97,7 @@ async function conectar() {
     return;
   }
 
-  const wsTokenData = await wsTokenResp.json();
+  const wsTokenData = await lerJsonSeguro(wsTokenResp);
   const wsToken = wsTokenData.ws_token;
 
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -107,6 +117,15 @@ async function conectar() {
       atualizarMarcador(msg);
     } else if (msg.tipo === 'motoboy_offline') {
       removerMarcador(msg.motoboy_id);
+      statusEl().textContent = `Motoboy ${escapeHtml(msg.motoboy_id)} ficou offline`;
+    } else if (msg.tipo === 'novo_pedido') {
+      statusEl().textContent = 'Novo pedido recebido';
+    } else if (msg.tipo === 'pedido_aceito') {
+      statusEl().textContent = `Pedido ${escapeHtml(msg.pedido_id)} aceito`;
+    } else if (msg.tipo === 'pedido_status_alterado') {
+      statusEl().textContent = `Pedido ${escapeHtml(msg.pedido_id)}: ${escapeHtml(msg.status)}`;
+    } else if (msg.tipo === 'motoboy_status_alterado') {
+      statusEl().textContent = `Motoboy ${escapeHtml(msg.motoboy_id)}: ${escapeHtml(msg.status)}`;
     }
   };
 
