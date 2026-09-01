@@ -43,6 +43,15 @@ async def security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "img-src 'self' data: https://*.tile.openstreetmap.org; "
+        "connect-src 'self'; "
+        "font-src 'self' data:; "
+        "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    )
     if not settings.DEBUG:
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response

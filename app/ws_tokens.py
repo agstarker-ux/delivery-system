@@ -4,12 +4,14 @@ import time
 _tokens = {}
 _TTL_SEGUNDOS = 20
 
-def gerar_token_ws(usuario_id: int) -> str:
+def gerar_token_ws(usuario_id: str) -> str:
+    # Limpa tokens expirados antes de adicionar novos para evitar crescimento ilimitado.
+    limpar_tokens_expirados()
     token = secrets.token_urlsafe(32)
     _tokens[token] = (usuario_id, time.time() + _TTL_SEGUNDOS)
     return token
 
-def validar_token_ws(token: str) -> int | None:
+def validar_token_ws(token: str) -> str | None:
     dados = _tokens.pop(token, None)
     if dados is None:
         return None

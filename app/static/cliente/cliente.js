@@ -1,8 +1,8 @@
 const CENTRO_PORANGA = [-3.110897, -58.458911];
 const RAIO_KM = 3;
 
-let token = localStorage.getItem('cliente_token') || null;
-let nomeUsuario = localStorage.getItem('cliente_nome') || null;
+let token = sessionStorage.getItem('cliente_token') || null;
+let nomeUsuario = sessionStorage.getItem('cliente_nome') || null;
 
 let mapPicker = null;
 let marcadorPicker = null;
@@ -151,8 +151,8 @@ function entrarComToken(novoToken, nome) {
   token = novoToken;
   nomeUsuario = nome;
 
-  localStorage.setItem('cliente_token', token);
-  localStorage.setItem('cliente_nome', nome);
+  sessionStorage.setItem('cliente_token', token);
+  sessionStorage.setItem('cliente_nome', nome);
 
   document
     .getElementById('auth-section')
@@ -175,8 +175,8 @@ function sair() {
   if (pollingInterval) clearInterval(pollingInterval);
   wsAcompanhar = null;
   pollingInterval = null;
-  localStorage.removeItem('cliente_token');
-  localStorage.removeItem('cliente_nome');
+  sessionStorage.removeItem('cliente_token');
+  sessionStorage.removeItem('cliente_nome');
 
   token = null;
   nomeUsuario = null;

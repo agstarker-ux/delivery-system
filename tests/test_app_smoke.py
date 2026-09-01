@@ -18,6 +18,7 @@ class AppSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
         self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+        self.assertIn("default-src 'self'", response.headers["content-security-policy"])
 
     def test_paginas_estaticas(self):
         for path in ("/", "/cliente/", "/motoboy/", "/admin/"):

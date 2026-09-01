@@ -42,3 +42,13 @@ Não serão introduzidos pagamentos, migração de banco, mudança de autentica�
 Foram executados com sucesso os testes automatizados, a compilação dos módulos Python, a verificação de sintaxe dos scripts JavaScript, a importação dos módulos do backend, a verificação do esquema de rotas e o carregamento visual das páginas inicial, cliente, motoboy e administrador no preview local.
 
 A validação não incluiu uma operação completa com base de dados PostgreSQL nem GPS de um dispositivo real, porque o ambiente local não possui uma base configurada nem deve receber dados pessoais reais durante esta revisão.
+
+## Revisão final de segurança e privacidade
+
+A sessão do cliente deixou de ser mantida no armazenamento permanente do navegador e passou a existir apenas enquanto o separador estiver aberto. Isso reduz a exposição de um token abandonado em computadores partilhados, embora a proteção ideal para uma aplicação pública continue a ser uma sessão baseada em cookie seguro e HttpOnly.
+
+Foi adicionada uma política de segurança de conteúdo ao backend. Ela limita scripts, estilos, imagens, ligações e frames aos recursos necessários do próprio sistema, do Leaflet e dos mapas OpenStreetMap. Também foi corrigido o módulo de tokens temporários do WebSocket, que precisava de importar o gerador criptográfico e agora limpa tokens expirados antes de criar novos.
+
+A revisão final confirmou que a aplicação não contém ficheiros `.env` rastreados nem credenciais no repositório. Os logs encontrados registam identificadores operacionais de motoboys e pedidos, mas não registam palavras-passe ou tokens de autenticação.
+
+A bateria final passou com **10 testes automatizados aprovados**. Ela cobre a saúde da aplicação, páginas estáticas, cabeçalhos de segurança, contratos de entrada, transições de pedidos, concorrência de sessões WebSocket e uso único/expiração dos tokens temporários. A sintaxe dos três scripts JavaScript e a compilação dos módulos Python também foram aprovadas.
