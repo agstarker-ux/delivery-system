@@ -166,10 +166,15 @@ function entrarComToken(novoToken, nome) {
     `Olá, ${nome}!`;
 
   carregarEnderecos();
+  carregarPedidoAtivo();
 }
 
 
 function sair() {
+  if (wsAcompanhar) wsAcompanhar.close();
+  if (pollingInterval) clearInterval(pollingInterval);
+  wsAcompanhar = null;
+  pollingInterval = null;
   localStorage.removeItem('cliente_token');
   localStorage.removeItem('cliente_nome');
 
@@ -235,7 +240,7 @@ async function carregarEnderecos() {
     }
 
     lista.innerHTML = enderecos.map(e => `
-      <div class="linha-endereco">
+      <div class="linha-endereco" data-endereco-id="${escapeHtml(e.id)}">
 
         <div class="linha-endereco-topo">
           <strong class="linha-endereco-apelido">
@@ -410,17 +415,19 @@ async function salvarEndereco() {
 
 
 async function removerEndereco(id) {
+  if (!confirm('Remover este endereço?')) return;
+
   try {
+    const resp = await apiFetch(`/enderecos/${id}`, { method: 'DELETE' });
+    if (!resp.ok) {
+      const data = await resp.json();
+      mostrarMsg(data.detail || 'Não foi possível remover o endereço.');
+      return;
+    }
 
-    await apiFetch(
-      `/enderecos/${id}`,
-      {
-        method: 'DELETE'
-      }
-    );
-
-    carregarEnderecos();
-
+    if (enderecoEscolhidoId === id) enderecoEscolhidoId = null;
+    mostrarMsg('Endereço removido.', false);
+    await carregarEnderecos();
   } catch (e) {
     /* já tratado */
   }
@@ -686,9 +693,8 @@ function montarResumoPedido() {
   }
 
   const enderecoSelecionado =
-    document.querySelector(
-      '.linha-endereco'
-    );
+    Array.from(document.querySelectorAll('.linha-endereco'))
+      .find((elemento) => elemento.dataset.enderecoId === String(enderecoEscolhidoId));
 
   if (enderecoSelecionado) {
 
@@ -922,6 +928,18 @@ const LABELS_STATUS = {
 };
 
 
+async function carregarPedidoAtivo() {
+  try {
+    const resp = await apiFetch('/pedidos/me/atual');
+    if (!resp.ok) return;
+    const pedido = await resp.json();
+    if (pedido) iniciarAcompanhamento(pedido);
+  } catch (e) {
+    /* restauração opcional da sessão */
+  }
+}
+
+
 function iniciarAcompanhamento(pedido) {
 
   pedidoAtualId = pedido.id;
@@ -1028,12 +1046,12 @@ async function verificarStatusPedido(pedidoId) {
       pedido.status === 'cancelado'
     ) {
 
-      clearInterval(
-        pollingInterval
-      );
+      clearInterval(pollingInterval);
+      pollingInterval = null;
 
       if (wsAcompanhar) {
         wsAcompanhar.close();
+        wsAcompanhar = null;
       }
     }
 
@@ -1068,31 +1086,28 @@ async function conectarWebSocketPedido(pedidoId) {
     );
 
   wsAcompanhar.onmessage = (event) => {
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch (e) {
+      return;
+    }
 
-    const msg =
-      JSON.parse(event.data);
-
-    if (msg.tipo === 'posicao_gps') {
-
-      const pos = [
-        msg.latitude,
-        msg.longitude
-      ];
+    if (msg.tipo === 'posicao_gps' && Number.isFinite(msg.latitude) && Number.isFinite(msg.longitude)) {
+      const pos = [msg.latitude, msg.longitude];
 
       if (marcadorMotoboyMap) {
-
-        marcadorMotoboyMap
-          .setLatLng(pos);
-
+        marcadorMotoboyMap.setLatLng(pos);
       } else {
-
-        marcadorMotoboyMap =
-          L.marker(pos)
-            .addTo(mapAcompanhar)
-            .bindPopup('🛵 Seu motoboy');
+        marcadorMotoboyMap = L.marker(pos)
+          .addTo(mapAcompanhar)
+          .bindPopup('🛵 Seu motoboy');
       }
     }
   };
+
+  wsAcompanhar.onerror = () => mostrarMsg('Não foi possível atualizar a localização em tempo real.');
+  wsAcompanhar.onclose = () => { wsAcompanhar = null; };
 }
 
 
@@ -1108,10 +1123,12 @@ function voltarParaNovoPedido() {
 
   if (wsAcompanhar) {
     wsAcompanhar.close();
+    wsAcompanhar = null;
   }
 
   if (pollingInterval) {
     clearInterval(pollingInterval);
+    pollingInterval = null;
   }
 
   carregarEnderecos();
@@ -1167,6 +1184,7 @@ if (token && nomeUsuario) {
     `Olá, ${nomeUsuario}!`;
 
   carregarEnderecos();
+  carregarPedidoAtivo();
 }
 
 

@@ -91,7 +91,16 @@ async def aceitar_pedido(
     if motoboy is None:
         raise HTTPException(status_code=404, detail="Perfil de motoboy não encontrado")
 
-    resultado = await db.execute(select(Pedido).where(Pedido.id == pedido_id))
+    if motoboy.status != StatusMotoboy.DISPONIVEL:
+        raise HTTPException(
+            status_code=409,
+            detail="Fique disponível antes de aceitar um pedido.",
+        )
+
+    # Bloqueia o pedido dentro da transação para impedir dois aceites simultâneos.
+    resultado = await db.execute(
+        select(Pedido).where(Pedido.id == pedido_id).with_for_update()
+    )
     pedido = resultado.scalar_one_or_none()
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
@@ -139,12 +148,18 @@ async def atualizar_status_pedido(
         )
 
     pedido.status = dados.status
-    if dados.status == StatusPedido.ENTREGUE:
-        pedido.entregue_em = datetime.utcnow()
-        resultado_mb = await db.execute(select(Motoboy).where(Motoboy.id == pedido.motoboy_id))
-        motoboy = resultado_mb.scalar_one_or_none()
-        if motoboy:
-            motoboy.status = StatusMotoboy.DISPONIVEL
+    if dados.status in {StatusPedido.ENTREGUE, StatusPedido.CANCELADO}:
+        if dados.status == StatusPedido.ENTREGUE:
+            pedido.entregue_em = datetime.utcnow()
+
+        if pedido.motoboy_id:
+            resultado_mb = await db.execute(
+                select(Motoboy).where(Motoboy.id == pedido.motoboy_id)
+            )
+            motoboy = resultado_mb.scalar_one_or_none()
+            if motoboy and motoboy.status == StatusMotoboy.EM_ENTREGA:
+                motoboy.status = StatusMotoboy.DISPONIVEL
+
         gerenciador.desvincular_pedido(pedido_id)
 
     await db.commit()
@@ -154,6 +169,47 @@ async def atualizar_status_pedido(
         "pedido_status_alterado", {"pedido_id": pedido.id, "status": pedido.status.value}
     )
     return pedido
+
+
+@router.get("/me/atual", response_model=PedidoResponse | None)
+async def obter_pedido_atual(
+    db: AsyncSession = Depends(get_db),
+    usuario: Usuario = Depends(obter_usuario_atual),
+):
+    estados_ativos = {
+        StatusPedido.PENDENTE,
+        StatusPedido.ACEITO,
+        StatusPedido.A_CAMINHO_COLETA,
+        StatusPedido.COLETADO,
+        StatusPedido.A_CAMINHO_ENTREGA,
+    }
+
+    if usuario.tipo == "cliente":
+        resultado_perfil = await db.execute(
+            select(Cliente).where(Cliente.usuario_id == usuario.id)
+        )
+        cliente = resultado_perfil.scalar_one_or_none()
+        if cliente is None:
+            raise HTTPException(status_code=404, detail="Perfil de cliente não encontrado")
+        filtro = Pedido.cliente_id == cliente.id
+    elif usuario.tipo == "motoboy":
+        resultado_perfil = await db.execute(
+            select(Motoboy).where(Motoboy.usuario_id == usuario.id)
+        )
+        motoboy = resultado_perfil.scalar_one_or_none()
+        if motoboy is None:
+            raise HTTPException(status_code=404, detail="Perfil de motoboy não encontrado")
+        filtro = Pedido.motoboy_id == motoboy.id
+    else:
+        return None
+
+    resultado = await db.execute(
+        select(Pedido)
+        .where(filtro, Pedido.status.in_(estados_ativos))
+        .order_by(Pedido.criado_em.desc())
+        .limit(1)
+    )
+    return resultado.scalar_one_or_none()
 
 
 @router.get("/{pedido_id}", response_model=PedidoResponse)

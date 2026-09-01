@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import hash_senha, verificar_senha, criar_access_token, obter_usuario_atual
 from app.database import get_db
-from app.models import Usuario, Cliente, Motoboy
+from app.models import Cliente, Usuario
 from app.rate_limit import limitar_por_ip
 from app.schemas import RegistroUsuario, LoginRequest, TokenResponse
 from app.ws_tokens import gerar_token_ws
@@ -32,10 +32,7 @@ async def registrar(dados: RegistroUsuario, db: AsyncSession = Depends(get_db)):
     db.add(usuario)
     await db.flush()
 
-    if dados.tipo == "cliente":
-        db.add(Cliente(usuario_id=usuario.id))
-    else:
-        db.add(Motoboy(usuario_id=usuario.id))
+    db.add(Cliente(usuario_id=usuario.id))
 
     await db.commit()
 

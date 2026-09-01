@@ -146,6 +146,28 @@ h1 {
 }
 
 .rodape strong { color: var(--verde); }
+
+/* Camada visual revisada — entrada do sistema */
+:root { --laranja:#ffb84d; --laranja-escuro:#e99a2f; --fundo:#0f1110; --cartao:#171a17; --texto:#f8f4ea; --texto-secundario:#a9b0a4; --borda:rgba(248,244,234,.12); }
+body { background:radial-gradient(circle at 14% 0%,rgba(255,184,77,.12),transparent 30rem),radial-gradient(circle at 90% 18%,rgba(115,212,154,.08),transparent 28rem),var(--fundo); }
+.hero { padding:clamp(64px,12vw,120px) 20px 110px; background:linear-gradient(145deg,rgba(29,33,29,.75),rgba(15,17,16,.1)); }
+.hero::after { content:''; position:absolute; left:50%; bottom:44px; width:72px; height:1px; background:linear-gradient(90deg,transparent,var(--laranja),transparent); transform:translateX(-50%); }
+.pin { opacity:.08; filter:grayscale(1); }
+.eyebrow { padding:8px 15px; background:rgba(255,184,77,.12); color:var(--laranja); border:1px solid rgba(255,184,77,.3); font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
+h1 { font-size:clamp(42px,8vw,78px); letter-spacing:-.055em; }
+.subtitulo { max-width:560px; font-size:clamp(16px,2.2vw,20px); line-height:1.6; }
+.cards { max-width:1020px; margin:-58px auto 0; gap:16px; }
+.card { position:relative; min-height:250px; justify-content:center; padding:34px 26px; border-radius:22px; background:linear-gradient(145deg,rgba(29,33,29,.98),rgba(20,23,20,.98)); border:1px solid var(--borda); box-shadow:0 22px 60px rgba(0,0,0,.3); transition:transform .2s cubic-bezier(.23,1,.32,1),border-color .2s ease,box-shadow .2s ease; }
+.card:hover { transform:translateY(-8px); border-color:rgba(255,184,77,.5); box-shadow:0 28px 72px rgba(0,0,0,.43); }
+.card-icone { width:70px; height:70px; display:grid; place-items:center; border-radius:20px; background:rgba(255,184,77,.1); font-size:42px; }
+.card h2 { font-size:25px; letter-spacing:-.03em; }
+.card p { max-width:220px; font-size:14px; line-height:1.65; }
+.card-cliente { border-top:0; } .card-motoboy { border-top:0; } .card-admin { border-top:0; }
+.card-cliente::before,.card-motoboy::before,.card-admin::before { content:''; position:absolute; top:0; left:26px; right:26px; height:3px; border-radius:0 0 99px 99px; }
+.card-cliente::before { background:var(--laranja); } .card-motoboy::before { background:#ff7171; } .card-admin::before { background:var(--verde); }
+.rodape { padding-top:6px; color:#899287; }
+@media (max-width:760px) { .hero { padding-bottom:92px; } .cards { margin-top:-42px; padding-left:16px; padding-right:16px; } .card { min-height:210px; } }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 </style>
 </head>
 <body>

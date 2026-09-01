@@ -1,19 +1,26 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
 
-from app.models import StatusPedido, StatusMotoboy
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.models import StatusMotoboy, StatusPedido
 
 
-class RegistroUsuario(BaseModel):
+class BaseInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class RegistroUsuario(BaseInput):
     nome: str = Field(min_length=2, max_length=120)
-    telefone: str = Field(min_length=10, max_length=20)
-    senha: str = Field(min_length=6, max_length=100)
-    tipo: str = Field(pattern="^(cliente|motoboy)$")
+    telefone: str = Field(min_length=10, max_length=20, pattern=r"^[0-9+()\-\s]+$")
+    senha: str = Field(min_length=6, max_length=72)
+    # A criação pública fica limitada a clientes; motoboys são criados pelo administrador.
+    tipo: Literal["cliente"] = "cliente"
 
 
-class LoginRequest(BaseModel):
-    telefone: str
-    senha: str
+class LoginRequest(BaseInput):
+    telefone: str = Field(min_length=1, max_length=20)
+    senha: str = Field(min_length=1, max_length=72)
 
 
 class TokenResponse(BaseModel):
@@ -24,21 +31,21 @@ class TokenResponse(BaseModel):
     nome: str
 
 
-class EnderecoCreate(BaseModel):
-    apelido: str = "Casa"
-    logradouro: str
-    numero: str
-    bairro: str
-    complemento: str | None = None
-    referencia: str | None = None
-    cidade: str = "Itacoatiara"
-    estado: str = "AM"
-    latitude: float
-    longitude: float
+class EnderecoCreate(BaseInput):
+    apelido: str = Field(default="Casa", min_length=1, max_length=50)
+    logradouro: str = Field(min_length=1, max_length=200)
+    numero: str = Field(min_length=1, max_length=20)
+    bairro: str = Field(min_length=1, max_length=100)
+    complemento: str | None = Field(default=None, max_length=200)
+    referencia: str | None = Field(default=None, max_length=200)
+    cidade: str = Field(default="Itacoatiara", min_length=1, max_length=100)
+    estado: str = Field(default="AM", min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$")
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
 
 
 class EnderecoResponse(EnderecoCreate):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
     id: str
 
 
@@ -51,16 +58,16 @@ class MotoboyResponse(BaseModel):
     atualizado_em: datetime | None
 
 
-class AtualizacaoStatusMotoboy(BaseModel):
+class AtualizacaoStatusMotoboy(BaseInput):
     status: StatusMotoboy
 
 
-class PosicaoGPSInput(BaseModel):
-    latitude: float = Field(ge=-90, le=90)
-    longitude: float = Field(ge=-180, le=180)
-    velocidade: float | None = None
-    precisao: float | None = None
-    pedido_id: str | None = None
+class PosicaoGPSInput(BaseInput):
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    velocidade: float | None = Field(default=None, ge=0, le=250, allow_inf_nan=False)
+    precisao: float | None = Field(default=None, ge=0, le=10000, allow_inf_nan=False)
+    pedido_id: str | None = Field(default=None, max_length=36, pattern=r"^[0-9a-fA-F-]{36}$")
 
 
 class PosicaoGPSBroadcast(BaseModel):
@@ -72,15 +79,15 @@ class PosicaoGPSBroadcast(BaseModel):
     timestamp: str
 
 
-class PedidoCreate(BaseModel):
-    endereco_id: str
-    origem_nome: str
-    origem_latitude: float
-    origem_longitude: float
-    itens_descricao: str
-    valor_total: float = Field(gt=0)
-    taxa_entrega: float = Field(ge=0, default=0.0)
-    observacoes: str | None = None
+class PedidoCreate(BaseInput):
+    endereco_id: str = Field(min_length=1, max_length=36)
+    origem_nome: str = Field(min_length=1, max_length=150)
+    origem_latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    origem_longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    itens_descricao: str = Field(min_length=1, max_length=2000)
+    valor_total: float = Field(gt=0, le=100000, allow_inf_nan=False)
+    taxa_entrega: float = Field(ge=0, le=100000, default=0.0, allow_inf_nan=False)
+    observacoes: str | None = Field(default=None, max_length=1000)
 
 
 class PedidoResponse(BaseModel):
@@ -102,5 +109,5 @@ class PedidoResponse(BaseModel):
     entregue_em: datetime | None
 
 
-class PedidoStatusUpdate(BaseModel):
+class PedidoStatusUpdate(BaseInput):
     status: StatusPedido

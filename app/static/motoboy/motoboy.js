@@ -31,6 +31,15 @@ let mapa = null;
 let marcadorOrigemMapa = null;
 let marcadorMotoboyMapa = null;
 
+function escapeHtml(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function mostrarMsg(texto, tipoErro) {
   const el = document.getElementById('mensagem-flutuante');
   el.textContent = texto;
@@ -57,14 +66,26 @@ async function fazerLogin() {
     if (data.tipo !== 'motoboy') { mostrarMsg('Esta conta não é de motoboy.'); return; }
 
     token = data.access_token;
-    motoboyId = data.usuario_id;
     motoboyNome = data.nome;
+
+    const perfilResp = await fetch('/motoboys/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const perfil = await perfilResp.json();
+    if (!perfilResp.ok) {
+      mostrarMsg(perfil.detail || 'Perfil de motoboy não encontrado');
+      token = null;
+      return;
+    }
+    motoboyId = perfil.id;
+    statusMotoboy = perfil.status || 'offline';
 
     document.getElementById('auth-section').classList.add('hidden');
     document.getElementById('logado-section').classList.remove('hidden');
     document.getElementById('saudacao').textContent = `Olá, ${motoboyNome}!`;
 
     atualizarBadgeStatus();
+    await carregarPedidoAtual();
   } catch (e) {
     mostrarMsg('Erro de rede ao entrar');
   }
@@ -99,15 +120,43 @@ async function obterTokenWs() {
 
 function atualizarBadgeStatus() {
   const badge = document.getElementById('status-badge');
-  badge.textContent = statusMotoboy;
-  badge.style.background = statusMotoboy === 'disponivel' ? '#16a34a' : '#6b7280';
+  const labels = { offline: 'Offline', disponivel: 'Disponível', em_entrega: 'Em entrega' };
+  badge.textContent = labels[statusMotoboy] || statusMotoboy;
+  badge.style.background = statusMotoboy === 'disponivel' ? '#16a34a' : statusMotoboy === 'em_entrega' ? '#3b82f6' : '#6b7280';
 
   const btn = document.getElementById('btn-alternar-status');
-  btn.textContent = statusMotoboy === 'disponivel' ? 'Ficar offline' : 'Ficar disponível';
-  btn.className = statusMotoboy === 'disponivel' ? 'perigo' : 'sucesso';
+  const emEntrega = statusMotoboy === 'em_entrega';
+  btn.disabled = emEntrega;
+  btn.textContent = emEntrega ? 'Entrega em andamento' : statusMotoboy === 'disponivel' ? 'Ficar offline' : 'Ficar disponível';
+  btn.className = emEntrega ? 'secundario' : statusMotoboy === 'disponivel' ? 'perigo' : 'sucesso';
+}
+
+async function carregarPedidoAtual() {
+  try {
+    const resp = await apiFetch('/pedidos/me/atual');
+    if (!resp.ok) return;
+    const pedido = await resp.json();
+    if (!pedido) return;
+
+    pedidoAtual = pedido;
+    statusMotoboy = 'em_entrega';
+    atualizarBadgeStatus();
+    document.getElementById('pendentes-section').classList.add('hidden');
+    document.getElementById('pedido-atual-section').classList.remove('hidden');
+    renderizarPedidoAtual();
+    await conectarWebSocketGPS();
+    iniciarEnvioGPS();
+  } catch (e) {
+    /* restauração opcional da sessão */
+  }
 }
 
 async function alternarStatus() {
+  if (statusMotoboy === 'em_entrega') {
+    mostrarMsg('Finalize ou cancele a entrega atual antes de alterar a disponibilidade.');
+    return;
+  }
+
   const novoStatus = statusMotoboy === 'disponivel' ? 'offline' : 'disponivel';
 
   try {
@@ -148,18 +197,25 @@ function renderizarPendentes(pedidos) {
   const lista = document.getElementById('lista-pendentes');
 
   if (!pedidos || pedidos.length === 0) {
-    lista.innerHTML = '<p><small>Nenhum pedido pendente no momento.</small></p>';
+    lista.innerHTML = '<p class="estado-vazio"><small>Nenhum pedido pendente no momento.</small></p>';
     return;
   }
 
   lista.innerHTML = pedidos.map(p => `
-    <div class="pedido-item">
-      <strong>${p.origem_nome || 'Estabelecimento'}</strong><br>
-      <small>${p.itens_descricao || ''}</small><br>
+    <div class="pedido-item" data-pedido-id="${escapeHtml(p.id)}">
+      <strong>${escapeHtml(p.origem_nome || 'Estabelecimento')}</strong><br>
+      <small>${escapeHtml(p.itens_descricao || '')}</small><br>
       <small>Valor: R$ ${Number(p.valor_total || 0).toFixed(2)} | Taxa: R$ ${Number(p.taxa_entrega || 0).toFixed(2)}</small><br>
-      <button onclick="aceitarPedido('${p.id}')">Aceitar</button>
+      <button type="button" class="js-aceitar-pedido">Aceitar</button>
     </div>
   `).join('');
+
+  lista.querySelectorAll('.js-aceitar-pedido').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      const item = botao.closest('[data-pedido-id]');
+      if (item) aceitarPedido(item.dataset.pedidoId);
+    });
+  });
 }
 
 async function aceitarPedido(pedidoId) {
@@ -169,8 +225,13 @@ async function aceitarPedido(pedidoId) {
     if (!resp.ok) { mostrarMsg(data.detail || 'Erro ao aceitar pedido'); return; }
 
     pedidoAtual = data;
+    statusMotoboy = 'em_entrega';
+    atualizarBadgeStatus();
 
-    if (pollingPendentes) { clearInterval(pollingPendentes); pollingPendentes = null; }
+    if (pollingPendentes) {
+      clearInterval(pollingPendentes);
+      pollingPendentes = null;
+    }
     document.getElementById('pendentes-section').classList.add('hidden');
     document.getElementById('pedido-atual-section').classList.remove('hidden');
 
@@ -219,7 +280,7 @@ function inicializarMapaPedido() {
   }
 
   if (marcadorOrigemMapa) mapa.removeLayer(marcadorOrigemMapa);
-  marcadorOrigemMapa = L.marker([lat, lon]).addTo(mapa).bindPopup(`📍 ${pedidoAtual.origem_nome || 'Estabelecimento'}`);
+  marcadorOrigemMapa = L.marker([lat, lon]).addTo(mapa).bindPopup(`📍 ${escapeHtml(pedidoAtual.origem_nome || 'Estabelecimento')}`);
 
   setTimeout(() => mapa.invalidateSize(), 100);
 }
@@ -264,6 +325,8 @@ function finalizarPedido() {
   fecharWebSocketGPS();
 
   pedidoAtual = null;
+  statusMotoboy = 'disponivel';
+  atualizarBadgeStatus();
   document.getElementById('pedido-atual-section').classList.add('hidden');
 
   if (statusMotoboy === 'disponivel') {
@@ -311,6 +374,7 @@ function iniciarEnvioGPS() {
         latitude: posicao.coords.latitude,
         longitude: posicao.coords.longitude,
         velocidade: posicao.coords.speed || null,
+        precisao: posicao.coords.accuracy || null,
         pedido_id: pedidoAtual ? pedidoAtual.id : null
       };
 
@@ -346,4 +410,5 @@ function pararTudo() {
   pararEnvioGPS();
   fecharWebSocketGPS();
   if (pollingPendentes) clearInterval(pollingPendentes);
+  pollingPendentes = null;
 }

@@ -8,7 +8,8 @@ L.control.zoom({ position: 'topright' }).addTo(map);
 const recentralizarControl = L.control({ position: 'topright' });
 recentralizarControl.onAdd = function() {
   const btn = L.DomUtil.create('button');
-  btn.innerHTML = '⌖ Centralizar';
+  btn.type = 'button';
+  btn.textContent = '⌖ Centralizar';
   btn.style.cssText = 'background:white;padding:6px 10px;border-radius:4px;border:2px solid rgba(0,0,0,0.2);cursor:pointer;font-size:13px;';
   btn.onclick = () => map.setView(CENTRO_PORANGA, 14);
   return btn;
@@ -27,6 +28,16 @@ L.circle(CENTRO_PORANGA, {
 }).addTo(map);
 
 const marcadoresMotoboys = {};
+let wsAdmin = null;
+
+function escapeHtml(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 function statusEl() {
   return document.getElementById('status');
@@ -54,6 +65,10 @@ async function conectar() {
   }
 
   const data = await resp.json();
+  if (data.tipo !== 'admin') {
+    statusEl().textContent = 'Esta conta não é de administrador';
+    return;
+  }
   const token = data.access_token;
 
   let wsTokenResp;
@@ -76,14 +91,18 @@ async function conectar() {
   const wsToken = wsTokenData.ws_token;
 
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${wsProtocol}://${location.host}/ws/admin?token=${wsToken}`);
+  if (wsAdmin) wsAdmin.close();
+  wsAdmin = new WebSocket(`${wsProtocol}://${location.host}/ws/admin?token=${wsToken}`);
 
-  ws.onopen = () => { statusEl().textContent = 'Conectado — aguardando GPS...'; };
+  wsAdmin.onopen = () => { statusEl().textContent = 'Conectado — aguardando GPS...'; };
 
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    // Formato real enviado por broadcast_posicao() em websocket_manager.py:
-    // { tipo: "posicao_gps", motoboy_id, latitude, longitude, velocidade, pedido_id, timestamp }
+  wsAdmin.onmessage = (event) => {
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch (e) {
+      return;
+    }
     if (msg.tipo === 'posicao_gps') {
       atualizarMarcador(msg);
     } else if (msg.tipo === 'motoboy_offline') {
@@ -91,26 +110,31 @@ async function conectar() {
     }
   };
 
-  ws.onerror = () => { statusEl().textContent = 'Erro no WebSocket'; };
-  ws.onclose = () => { statusEl().textContent = 'Desconectado'; };
+  wsAdmin.onerror = () => { statusEl().textContent = 'Erro no WebSocket'; };
+  wsAdmin.onclose = () => { wsAdmin = null; statusEl().textContent = 'Desconectado'; };
 }
 
 function atualizarMarcador(msg) {
   const { motoboy_id, latitude, longitude, velocidade, pedido_id } = msg;
   const pos = [latitude, longitude];
 
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+  const idSeguro = escapeHtml(motoboy_id);
+  const velocidadeSegura = Number.isFinite(velocidade) ? velocidade : null;
+  const pedidoSeguro = pedido_id ? escapeHtml(pedido_id) : null;
+
   if (marcadoresMotoboys[motoboy_id]) {
     marcadoresMotoboys[motoboy_id].setLatLng(pos);
   } else {
     marcadoresMotoboys[motoboy_id] = L.marker(pos)
       .addTo(map)
-      .bindPopup(`Motoboy #${motoboy_id}`);
+      .bindPopup(`Motoboy #${idSeguro}`);
   }
 
   marcadoresMotoboys[motoboy_id].getPopup().setContent(
-    `Motoboy #${motoboy_id}` +
-    (velocidade != null ? ` — ${velocidade.toFixed(1)} km/h` : '') +
-    (pedido_id ? `<br>Pedido: ${pedido_id}` : '<br><em>Sem pedido ativo</em>')
+    `Motoboy #${idSeguro}` +
+    (velocidadeSegura != null ? ` — ${velocidadeSegura.toFixed(1)} km/h` : '') +
+    (pedidoSeguro ? `<br>Pedido: ${pedidoSeguro}` : '<br><em>Sem pedido ativo</em>')
   );
 }
 

@@ -18,6 +18,16 @@ def limitar_por_ip(max_tentativas: int, janela_segundos: int):
         while fila and agora - fila[0] > janela_segundos:
             fila.popleft()
 
+        # Remove chaves inativas quando o dicionário cresce, sem alterar o limite.
+        if len(_registros) > 10000:
+            chaves_inativas = [
+                chave_registro
+                for chave_registro, fila_registro in _registros.items()
+                if not fila_registro or agora - fila_registro[-1] > janela_segundos
+            ]
+            for chave_registro in chaves_inativas:
+                _registros.pop(chave_registro, None)
+
         if len(fila) >= max_tentativas:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import exigir_tipo
 from app.database import get_db
 from app.geofence import validar_dentro_da_area_piloto
-from app.models import Endereco, Cliente, Usuario
+from app.models import Endereco, Cliente, Pedido, Usuario
 from app.schemas import EnderecoCreate, EnderecoResponse
 
 router = APIRouter(prefix="/enderecos", tags=["Endereços"])
@@ -62,6 +62,15 @@ async def remover_endereco(
     endereco = resultado.scalar_one_or_none()
     if endereco is None:
         raise HTTPException(status_code=404, detail="Endereço não encontrado ou não pertence a você")
+
+    resultado_pedidos = await db.execute(
+        select(Pedido.id).where(Pedido.endereco_id == endereco.id).limit(1)
+    )
+    if resultado_pedidos.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este endereço já está ligado a um pedido e não pode ser removido.",
+        )
 
     await db.delete(endereco)
     await db.commit()

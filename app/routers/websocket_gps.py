@@ -24,7 +24,7 @@ async def _autenticar_websocket(token: str) -> dict | None:
     async with AsyncSessionLocal() as db:
         resultado = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
         usuario = resultado.scalar_one_or_none()
-        if usuario is None:
+        if usuario is None or not usuario.ativo:
             return None
         return {"sub": usuario.id, "tipo": usuario.tipo}
 
@@ -45,8 +45,8 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
 
         usuario_do_token = payload.get("sub")
         tipo_do_token = payload.get("tipo")
-        if tipo_do_token != "admin" and motoboy.usuario_id != usuario_do_token:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token não pertence a este motoboy")
+        if tipo_do_token != "motoboy" or motoboy.usuario_id != usuario_do_token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Apenas o próprio motoboy pode enviar GPS")
             return
 
     await gerenciador.conectar_motoboy(motoboy_id, websocket)
@@ -56,7 +56,13 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
 
     try:
         while True:
-            dados_brutos = await websocket.receive_json()
+            try:
+                dados_brutos = await websocket.receive_json()
+            except WebSocketDisconnect:
+                raise
+            except (TypeError, ValueError):
+                await websocket.send_json({"erro": "Mensagem GPS inválida"})
+                continue
 
             agora_monotonico = time.monotonic()
             if agora_monotonico - ultimo_envio < intervalo_minimo_segundos:
@@ -65,8 +71,8 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
             ultimo_envio = agora_monotonico
             try:
                 posicao = PosicaoGPSInput(**dados_brutos)
-            except Exception as e:
-                await websocket.send_json({"erro": f"Payload inválido: {e}"})
+            except Exception:
+                await websocket.send_json({"erro": "Payload GPS inválido"})
                 continue
 
             if not esta_na_area_piloto(posicao.latitude, posicao.longitude):
@@ -117,15 +123,16 @@ async def websocket_motoboy(websocket: WebSocket, motoboy_id: str, token: str = 
     except WebSocketDisconnect:
         logger.info(f"Motoboy {motoboy_id} desconectou")
     finally:
-        gerenciador.desconectar_motoboy(motoboy_id)
-        async with AsyncSessionLocal() as db:
-            resultado = await db.execute(select(Motoboy).where(Motoboy.id == motoboy_id))
-            motoboy = resultado.scalar_one_or_none()
-            if motoboy:
-                from app.models import StatusMotoboy
-                motoboy.status = StatusMotoboy.OFFLINE
-                await db.commit()
-        await gerenciador.notificar_admins("motoboy_offline", {"motoboy_id": motoboy_id})
+        era_sessao_atual = gerenciador.desconectar_motoboy(motoboy_id, websocket)
+        if era_sessao_atual:
+            async with AsyncSessionLocal() as db:
+                resultado = await db.execute(select(Motoboy).where(Motoboy.id == motoboy_id))
+                motoboy = resultado.scalar_one_or_none()
+                if motoboy:
+                    from app.models import StatusMotoboy
+                    motoboy.status = StatusMotoboy.OFFLINE
+                    await db.commit()
+            await gerenciador.notificar_admins("motoboy_offline", {"motoboy_id": motoboy_id})
 
 
 @router.websocket("/ws/admin")

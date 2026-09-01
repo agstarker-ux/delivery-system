@@ -15,6 +15,7 @@ import os
 
 MOTOBOY_ID = os.environ["SIMULADOR_MOTOBOY_ID"]
 TOKEN = os.environ["SIMULADOR_MOTOBOY_TOKEN"]
+PEDIDO_ID = os.getenv("SIMULADOR_PEDIDO_ID") or None
 
 URL = f"ws://localhost:8000/ws/motoboy/{MOTOBOY_ID}?token={TOKEN}"
 
@@ -41,7 +42,7 @@ async def simular():
                 "latitude": lat,
                 "longitude": lon,
                 "velocidade": velocidade,
-                "pedido_id": "727ca74e-9999-4a79-9d7b-bc03c59708a4",
+                "pedido_id": PEDIDO_ID,
             }
 
             await ws.send(json.dumps(payload))
