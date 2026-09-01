@@ -776,3 +776,104 @@ button.pequeno {
   margin-bottom: 12px;
   color: var(--texto-secundario);
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+   Nova camada visual — Delivery Poranga
+   Mantém a estrutura e os IDs existentes para não afetar o backend.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --fundo: #0f1110;
+  --cartao: #171a17;
+  --cartao-elevado: #1d211d;
+  --texto: #f8f4ea;
+  --texto-secundario: #a9b0a4;
+  --laranja: #ffb84d;
+  --laranja-escuro: #e99a2f;
+  --verde: #73d49a;
+  --vermelho: #ff7171;
+  --borda: rgba(248, 244, 234, .11);
+  --sombra: 0 14px 40px rgba(0, 0, 0, .24);
+  --sombra-elevada: 0 22px 70px rgba(0, 0, 0, .42);
+}
+
+html { background: #0f1110; }
+body {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,184,77,.11), transparent 32rem),
+    radial-gradient(circle at 100% 16%, rgba(115,212,154,.06), transparent 26rem),
+    var(--fundo);
+}
+#app { max-width: 620px; padding: 0 20px 60px; }
+.topo {
+  margin: 0 -20px 28px;
+  padding: 22px 24px;
+  background: rgba(23,26,23,.82);
+  border-bottom: 1px solid var(--borda);
+  backdrop-filter: blur(18px);
+}
+.topo-icone { font-size: 26px; filter: drop-shadow(0 6px 14px rgba(255,184,77,.22)); }
+.topo h1 { font-size: 22px; letter-spacing: -.03em; color: var(--texto); }
+.topo h1::after { content: '  •  entregas locais'; color: var(--laranja); font-family: Inter, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.cartao {
+  padding: 26px;
+  margin-bottom: 18px;
+  background: linear-gradient(145deg, rgba(29,33,29,.98), rgba(20,23,20,.98));
+  border: 1px solid var(--borda);
+  border-radius: 22px;
+  box-shadow: var(--sombra);
+  animation: card-in .36s cubic-bezier(.23,1,.32,1) both;
+}
+.cartao h3 { font-size: 21px; letter-spacing: -.035em; margin-bottom: 8px; }
+.cartao h3::after { content: ''; display: block; width: 32px; height: 3px; margin-top: 11px; border-radius: 99px; background: var(--laranja); }
+label { color: #c3cabb; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+input, textarea, select {
+  padding: 14px 15px;
+  color: var(--texto);
+  background: rgba(15,17,16,.78);
+  border: 1px solid var(--borda);
+  border-radius: 13px;
+}
+input:hover, textarea:hover, select:hover { border-color: rgba(255,184,77,.38); }
+input:focus, textarea:focus, select:focus { border-color: var(--laranja); box-shadow: 0 0 0 4px rgba(255,184,77,.13); }
+button {
+  min-height: 48px;
+  margin-top: 16px;
+  border-radius: 13px;
+  background: var(--laranja);
+  color: #16130d;
+  box-shadow: 0 8px 18px rgba(255,184,77,.14);
+  transition: transform .16s cubic-bezier(.23,1,.32,1), background .16s ease, box-shadow .16s ease;
+}
+button:hover { background: var(--laranja-escuro); box-shadow: 0 12px 26px rgba(255,184,77,.2); transform: translateY(-1px); }
+button:active { transform: scale(.97); }
+button.secundario { background: transparent; border-color: var(--borda); color: var(--texto-secundario); box-shadow: none; }
+button.secundario:hover { background: rgba(248,244,234,.06); border-color: rgba(255,184,77,.45); color: var(--texto); }
+button.pequeno { min-height: 36px; }
+.abas { padding: 5px; gap: 5px; border-radius: 15px; background: rgba(15,17,16,.7); }
+.abas button { min-height: 42px; border-radius: 11px; }
+.abas button.ativa { box-shadow: none; }
+.linha-endereco { padding: 17px; border-color: var(--borda); border-radius: 16px; background: rgba(15,17,16,.35); }
+.linha-endereco:hover { background: rgba(255,184,77,.05); border-color: rgba(255,184,77,.45); }
+.mapa-caixa { border: 1px solid var(--borda); border-radius: 17px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.03); }
+.dica-mapa { padding: 10px 12px; border-radius: 11px; color: #c3cabb; background: rgba(115,212,154,.07); border: 1px solid rgba(115,212,154,.14); }
+.numero-passo { background: var(--laranja); box-shadow: 0 0 0 6px rgba(255,184,77,.10); }
+.progresso { height: 7px; background: rgba(248,244,234,.09); }
+#progresso-barra { background: linear-gradient(90deg, var(--laranja), #ffe09b); }
+.resumo-pedido { border-color: var(--borda); background: rgba(15,17,16,.5); }
+.resumo-total { background: rgba(255,184,77,.10); }
+.resumo-total strong { color: var(--laranja); }
+.status-badge { border: 1px solid rgba(115,212,154,.25); background: rgba(115,212,154,.14); color: var(--verde); }
+#mensagem-flutuante { background: #f8f4ea; color: #171a17; border: 0; box-shadow: var(--sombra-elevada); }
+#mensagem-flutuante.erro { background: var(--vermelho); color: #260d0d; }
+.leaflet-container { font-family: Inter, sans-serif; }
+@keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 520px) { #app { padding-left: 14px; padding-right: 14px; } .topo { margin-left: -14px; margin-right: -14px; } .cartao { padding: 21px 18px; border-radius: 19px; } .topo h1::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* pequena marca de contexto no formulário inicial */
+#auth-section::before { content: 'PEDA AQUI. A GENTE LEVA ATÉ VOCÊ.'; display: block; margin-bottom: 18px; color: var(--laranja); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+#auth-section h3 { font-size: 28px; }
+#acompanhar-section { border-color: rgba(115,212,154,.2); }
+
+html, body { overflow-x: hidden; }
